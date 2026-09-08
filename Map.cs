@@ -1,4 +1,7 @@
 ﻿using MapGenearionLibrary.Base;
+using System;
+using System.Linq;
+
 
 namespace MapGenearionLibrary
 {

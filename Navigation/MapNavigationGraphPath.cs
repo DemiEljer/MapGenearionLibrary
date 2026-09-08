@@ -9,17 +9,17 @@ namespace MapGenearionLibrary.Navigation
 {
     public class MapNavigationGraphPath
     {
-        public required MapRoom RoomFrom { get; init; }
+        public MapRoom RoomFrom { get; internal set; }
 
-        public required MapRoom RoomTo { get; init; }
+        public MapRoom RoomTo { get; internal set; }
 
-        public required MapPoint PointFrom { get; init; }
+        public MapPoint PointFrom { get; internal set; }
 
-        public required MapPoint PointTo { get; init; }
+        public MapPoint PointTo { get; internal set; }
 
-        public required MapPoint[] PointsSequence { get; init; }
+        public MapPoint[] PointsSequence { get; internal set; }
 
-        public double Distance { get; init; }
+        public double Distance { get; set; }
 
         internal MapNavigationGraphPath() { }
 

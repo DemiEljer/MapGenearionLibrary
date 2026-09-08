@@ -8,13 +8,13 @@ namespace MapGenearionLibrary.Base
 {
     public class MapRoom
     {
-        public int StartX { get; init; }
+        public int StartX { get; internal set; }
 
-        public int StartY { get; init; }
+        public int StartY { get; internal set; }
 
-        public int Width { get; init; }
+        public int Width { get; internal set; }
 
-        public int Height { get; init; }
+        public int Height { get; internal set; }
 
         public MapDoor[] Doors { get; private set; } = Array.Empty<MapDoor>();
 
