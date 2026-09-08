@@ -1,0 +1,15 @@
+## Build outputs
+[Bb]in/
+[Oo]bj/
+
+## IDE specific files (Visual Studio / Rider / VS Code)
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## OS specific files
+.DS_Store
+Thumbs.db
