@@ -57,7 +57,7 @@ namespace MapGenearionLibrary
                     {
                         if (mapConfig.MinRoomWidth <= 0
                             || mapConfig.MinRoomHeight <= 0
-                            || (newArea.Width > mapConfig.MinRoomWidth && newArea.Height > mapConfig.MinRoomHeight))
+                            || (newArea.Width >= mapConfig.MinRoomWidth && newArea.Height >= mapConfig.MinRoomHeight))
                         {
                             WallSeperation(newArea, layerIndex + 1);
                         }
