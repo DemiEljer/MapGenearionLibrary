@@ -20,7 +20,7 @@ namespace MapGenearionLibrary.Base
             _Rnd = rnd;
         }
 
-        public MapSeperationArea[] Seperate(Func<int, int, int, int, CellWallOrientationEnum, MapPoint[]> longWallCreationHandler)
+        public MapSeperationArea[] Seperate(Func<int, int, int, int, CellWallOrientationEnum, MapPoint[]> longWallCreationHandler, int widthLimitation, int heightLimitation)
         {
             if (Width <= 1 || Height <= 1)
             {
@@ -28,14 +28,19 @@ namespace MapGenearionLibrary.Base
             }
             else
             {
-                ChildAreas = new MapSeperationArea[2];
-
-                int randowDirection = _Rnd.Next() % 2;
+                int randomDirection = _Rnd.Next() % 2;
 
                 if (Width > Height
-                    || Width == Height && randowDirection == 0)
+                    || Width == Height && randomDirection == 0)
                 {
-                    int seperationLinePosition = Math.Max(1, _Rnd.Next(Width));
+                    if (Width <= widthLimitation)
+                    {
+                        return ChildAreas;
+                    }
+
+                    ChildAreas = new MapSeperationArea[2];
+
+                    int seperationLinePosition = Math.Max(widthLimitation, _Rnd.Next(Width) - widthLimitation + 1);
 
                     var doorPoins = longWallCreationHandler(
                         StartX + seperationLinePosition
@@ -78,9 +83,16 @@ namespace MapGenearionLibrary.Base
                     };
                 }
                 else if (Width < Height
-                         || Width == Height && randowDirection == 1)
+                         || Width == Height && randomDirection == 1)
                 {
-                    int seperationLinePosition = Math.Max(1, _Rnd.Next(Height));
+                    if (Height <= heightLimitation)
+                    {
+                        return ChildAreas;
+                    }
+
+                    ChildAreas = new MapSeperationArea[2];
+
+                    int seperationLinePosition = Math.Max(heightLimitation, _Rnd.Next(Height) - heightLimitation + 1);
 
                     var doorPoins = longWallCreationHandler(
                         StartX

@@ -45,7 +45,11 @@ namespace MapGenearionLibrary
                             return MapBuilder.SetLongWallWithDoors(map, Rnd, mapConfig.MaxDoorsCount, new MapPoint(x1, y1), new MapPoint(x2, y2), orientation);
                         } 
                     }
-                });
+                }
+                , 
+                mapConfig.MinRoomWidth > 0 ? mapConfig.MinRoomWidth : 1
+                ,
+                mapConfig.MinRoomHeight > 0 ? mapConfig.MinRoomHeight : 1);
 
                 if (mapConfig.MaxLayerCount <= 0 || layerIndex < mapConfig.MaxLayerCount)
                 {
@@ -53,7 +57,7 @@ namespace MapGenearionLibrary
                     {
                         if (mapConfig.MinRoomWidth <= 0
                             || mapConfig.MinRoomHeight <= 0
-                            || (newArea.Width >= mapConfig.MinRoomWidth && newArea.Height >= mapConfig.MinRoomHeight))
+                            || (newArea.Width > mapConfig.MinRoomWidth && newArea.Height > mapConfig.MinRoomHeight))
                         {
                             WallSeperation(newArea, layerIndex + 1);
                         }
