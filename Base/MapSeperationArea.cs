@@ -54,7 +54,7 @@ namespace MapGenearionLibrary.Base
                         CellWallOrientationEnum.Left);
 
                     SetDoors(doorPoins
-                        .Select(p => new MapDoor(p, new MapPoint(p.X - 1, p.Y)))
+                        .Select(p => new MapDoor(p, new MapPoint(p.X - 1, p.Y), CellWallOrientationEnum.Left))
                         .ToArray());
 
                     ChildAreas[0] = new MapSeperationArea(_Rnd)
@@ -106,7 +106,7 @@ namespace MapGenearionLibrary.Base
                         CellWallOrientationEnum.Top);
 
                     SetDoors(doorPoins
-                        .Select(p => new MapDoor(p, new MapPoint(p.X, p.Y - 1)))
+                        .Select(p => new MapDoor(p, new MapPoint(p.X, p.Y - 1), CellWallOrientationEnum.Top))
                         .ToArray());
 
                     ChildAreas[0] = new MapSeperationArea(_Rnd)

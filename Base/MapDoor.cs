@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MapGenearionLibrary.Enums;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,10 +13,13 @@ namespace MapGenearionLibrary.Base
 
         public MapPoint Area2 { get; }
 
-        public MapDoor(MapPoint area1, MapPoint area2)
+        public CellWallOrientationEnum Orientation { get; }
+
+        public MapDoor(MapPoint area1, MapPoint area2, CellWallOrientationEnum orientation)
         {
             Area1 = area1;
             Area2 = area2;
+            Orientation = orientation;
         }
     }
 }
