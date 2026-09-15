@@ -19,6 +19,8 @@ namespace MapGenearionLibrary.Navigation
 
         public MapPoint[] PointsSequence { get; internal set; }
 
+        public MapRoom[] RoomsSequence { get; internal set; }
+
         public double Distance { get; set; }
 
         internal MapNavigationGraphPath() { }

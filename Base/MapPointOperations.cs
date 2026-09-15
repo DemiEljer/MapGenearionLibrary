@@ -8,7 +8,7 @@ namespace MapGenearionLibrary.Base
 {
     public static class MapPointOperations
     {
-        public static double GetDistance(MapPoint point1, MapPoint point2)
+        public static double GetDistance(this MapPoint point1, MapPoint point2)
         {
             double deltaX = point1.X - point2.X;
             double deltaY = point1.Y - point2.Y;
@@ -16,10 +16,13 @@ namespace MapGenearionLibrary.Base
             return Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
         }
 
-        public static MapPoint GetDelta(MapPoint point1, MapPoint point2) =>
+        public static MapPoint GetDelta(this MapPoint point1, MapPoint point2) =>
             new MapPoint(point1.X - point2.X, point1.Y - point2.Y);
 
-        public static bool DoesRoomContainsPoint(MapRoom room, MapPoint point)
+        public static bool AreEqual(this MapPoint point1, MapPoint point2) => 
+            point1.X == point2.X && point1.Y == point2.Y;
+
+        public static bool DoesRoomContainsPoint(this MapRoom room, MapPoint point)
         {
             var startX = room.StartX;
             var endX = room.StartX + room.Width;
@@ -30,11 +33,11 @@ namespace MapGenearionLibrary.Base
                    && point.Y >= startY && point.Y < endY;
         }
 
-        public static bool DoesRoomContainsDoor(MapRoom room, MapDoor door) =>
+        public static bool DoesRoomContainsDoor(this MapRoom room, MapDoor door) =>
             DoesRoomContainsPoint(room, door.Area1) 
             || DoesRoomContainsPoint(room, door.Area2);
 
-        public static MapPoint GetRoomCenter(MapRoom room) =>
+        public static MapPoint GetRoomCenter(this MapRoom room) =>
             new MapPoint(room.StartX + room.Width / 2, room.StartY + room.Height / 2);
     }
 }

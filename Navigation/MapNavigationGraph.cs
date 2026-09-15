@@ -86,6 +86,8 @@ namespace MapGenearionLibrary.Navigation
                                 ,
                                 PointsSequence = currentPointPath.ToArray()
                                 ,
+                                RoomsSequence = currentElementPath.Select(e => e.Room).ToArray()
+                                ,
                                 Distance = currentDistance
                             });
 
