@@ -34,14 +34,6 @@ namespace MapGenearionLibrary.Navigation
 
             NavigationGraph = new(this);
             Obstacles = new(Map);
-            // Корректировка препятсвий
-            Obstacles.ObstacleHasBeenChanged += (int x, int y, bool existance) =>
-            {
-                foreach (var door in Doors)
-                {
-                    door.IsObstacled = !Obstacles[door.Area1] && !Obstacles[door.Area2];
-                }
-            };
         }
 
         private void _GetAllDoors()
