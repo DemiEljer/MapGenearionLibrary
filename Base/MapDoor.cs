@@ -15,6 +15,8 @@ namespace MapGenearionLibrary.Base
 
         public CellWallOrientationEnum Orientation { get; }
 
+        public bool IsObstacled { get; internal set; } = false;
+
         public MapDoor(MapPoint area1, MapPoint area2, CellWallOrientationEnum orientation)
         {
             Area1 = area1;

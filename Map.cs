@@ -15,6 +15,16 @@ namespace MapGenearionLibrary
 
         public int Height { get; } = 0;
 
+        public MapCell this[int x, int y]
+        {
+            get => GetCell(x, y);
+        }
+
+        public MapCell this[MapPoint point]
+        {
+            get => GetCell(point);
+        }
+
         public Map(int width, int height)
         {
             Width = width;
@@ -22,6 +32,8 @@ namespace MapGenearionLibrary
 
             _Cells = Enumerable.Range(0, Width * Height).Select(i => new MapCell(i % Width, i / Width)).ToArray();
         }
+
+        public MapCell? GetCell(MapPoint point) => GetCell(point.X, point.Y);
 
         public MapCell? GetCell(int x, int y)
         {
@@ -31,14 +43,7 @@ namespace MapGenearionLibrary
             }
             else
             {
-                //
-                x = x % Width;
-                y = y % Height;
-                // 
-                x = x < 0 ? x + Width : x;
-                y = y < 0 ? y + Height : y;
-
-                return _Cells[y * Width + x];
+                return _Cells[this.GetMapCellLocationIndex(x, y)];
             }
         }
 

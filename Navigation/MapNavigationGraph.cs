@@ -110,7 +110,7 @@ namespace MapGenearionLibrary.Navigation
                     }
                     else
                     {
-                        var nextRooms = currentRoom.RoomsTo.Select(room =>
+                        var nextRooms = currentRoom.RoomsTo.Where(room => !room.Door.IsObstacled).Select(room =>
                         {
                             if (MapPointOperations.DoesRoomContainsPoint(currentRoom.Room, room.Door.Area1))
                             {

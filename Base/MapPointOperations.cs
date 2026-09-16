@@ -3,11 +3,37 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using UnityEngine;
 
 namespace MapGenearionLibrary.Base
 {
     public static class MapPointOperations
     {
+        public static (int x, int y) GetMapCellLocation(this Map map, int x, int y)
+        {
+            if (map is null 
+                || map.Width == 0
+                || map.Height == 0)
+            {
+                return (-1, -1);
+            }
+
+            x = x % map.Width;
+            y = y % map.Height;
+
+            x = x < 0 ? x + map.Width : x;
+            y = y < 0 ? y + map.Height : y;
+
+            return (x, y);
+        }
+
+        public static int GetMapCellLocationIndex(this Map map, int x, int y)
+        {
+            var location = GetMapCellLocation(map, x, y);
+
+            return map.Width * y + x;
+        }
+
         public static double GetDistance(this MapPoint point1, MapPoint point2)
         {
             double deltaX = point1.X - point2.X;

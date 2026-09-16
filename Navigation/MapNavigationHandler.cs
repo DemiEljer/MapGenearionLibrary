@@ -17,6 +17,8 @@ namespace MapGenearionLibrary.Navigation
 
         public MapNavigationGraph NavigationGraph { get; }
 
+        public MapObstaclesHandler Obstacles { get; }
+
         private MapSeperationAreaIterator? _AreasIterator { get; } = null;
 
         public MapNavigationHandler(Map map)
@@ -31,6 +33,15 @@ namespace MapGenearionLibrary.Navigation
             _AssosiateRoomsWithDoors();
 
             NavigationGraph = new(this);
+            Obstacles = new(Map);
+            // Корректировка препятсвий
+            Obstacles.ObstacleHasBeenChanged += (int x, int y, bool existance) =>
+            {
+                foreach (var door in Doors)
+                {
+                    door.IsObstacled = !Obstacles[door.Area1] && !Obstacles[door.Area2];
+                }
+            };
         }
 
         private void _GetAllDoors()
