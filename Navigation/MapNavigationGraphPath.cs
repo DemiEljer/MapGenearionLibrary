@@ -17,9 +17,7 @@ namespace MapGenearionLibrary.Navigation
 
         public MapPoint PointTo { get; internal set; }
 
-        public MapPoint[] PointsSequence { get; internal set; }
-
-        public MapRoom[] RoomsSequence { get; internal set; }
+        public (MapPoint point, MapRoom room)[] PointsSequence { get; internal set; }
 
         public double Distance { get; set; }
 
@@ -29,19 +27,19 @@ namespace MapGenearionLibrary.Navigation
         {
             List<MapPoint> stepPoints = new();
             int pointIndex = 1;
-            MapPoint currentPoint = PointsSequence.First().Clone();
+            MapPoint currentPoint = PointsSequence.First().point.Clone();
 
             while (PointsSequence.Length > pointIndex)
             {
                 stepPoints.Add(currentPoint.Clone());
 
-                if (currentPoint.Compare(PointsSequence[pointIndex]))
+                if (currentPoint.Compare(PointsSequence[pointIndex].point))
                 {
                     pointIndex++;
                 }
                 else
                 {
-                    var delta = MapPointOperations.GetDelta(PointsSequence[pointIndex], currentPoint);
+                    var delta = MapPointOperations.GetDelta(PointsSequence[pointIndex].point, currentPoint);
                 
                     if (Math.Abs(delta.X) > Math.Abs(delta.Y))
                     {

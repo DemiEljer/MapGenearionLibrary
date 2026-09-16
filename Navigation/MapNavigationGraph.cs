@@ -53,7 +53,7 @@ namespace MapGenearionLibrary.Navigation
             {
                 List<MapNavigationGraphPath> resultPathes = new();
                 List<MapNavigationGraphElement> currentElementPath = new();
-                List<MapPoint> currentPointPath = new();
+                List<(MapPoint point, MapRoom room)> currentPointPath = new();
                 double minDistanationDistance = double.MaxValue;
                 double currentDistance = 0;
 
@@ -66,13 +66,13 @@ namespace MapGenearionLibrary.Navigation
                     }
 
                     currentElementPath.Add(currentRoom);
-                    currentPointPath.Add(currentPosition);
+                    currentPointPath.Add((currentPosition, currentRoom.Room));
 
                     if (currentRoom == roomTo)
                     {
                         if (currentDistance < minDistanationDistance)
                         {
-                            currentPointPath.Add(pointTo);
+                            currentPointPath.Add((currentPosition, currentRoom.Room));
 
                             resultPathes.Add(new MapNavigationGraphPath()
                             {
@@ -86,12 +86,10 @@ namespace MapGenearionLibrary.Navigation
                                 ,
                                 PointsSequence = currentPointPath.ToArray()
                                 ,
-                                RoomsSequence = currentElementPath.Select(e => e.Room).ToArray()
-                                ,
                                 Distance = currentDistance
                             });
 
-                            currentPointPath.Remove(pointTo);
+                            currentPointPath.RemoveAt(currentPointPath.Count - 1);
 
                             minDistanationDistance = currentDistance;
                             // Удаление более долгих путей
@@ -135,25 +133,25 @@ namespace MapGenearionLibrary.Navigation
                         {
                             currentDistance += nextRoom.Item4;
 
-                            if (currentPointPath.Last().Compare(nextRoom.Item1))
+                            if (currentPointPath.Last().point.Compare(nextRoom.Item1))
                             {
                                 _PathFinder(nextRoom.Item3.Element, nextRoom.Item2);
                             }
                             else
                             {
-                                currentPointPath.Add(nextRoom.Item1);
+                                currentPointPath.Add((nextRoom.Item1, nextRoom.Item3.Element.Room));
 
                                 _PathFinder(nextRoom.Item3.Element, nextRoom.Item2);
 
-                                currentPointPath.Remove(nextRoom.Item1);
+                                currentPointPath.RemoveAt(currentPointPath.Count - 1);
                             }
 
                             currentDistance -= nextRoom.Item4;
                         }
                     }
 
-                    currentElementPath.Remove(currentRoom);
-                    currentPointPath.Remove(currentPosition);
+                    currentElementPath.RemoveAt(currentElementPath.Count - 1);
+                    currentPointPath.RemoveAt(currentPointPath.Count - 1);
                 }
 
                 _PathFinder(roomFrom, pointFrom);
@@ -256,7 +254,7 @@ namespace MapGenearionLibrary.Navigation
                     }
                 }
 
-                resultPoints.Remove(currentPoint);
+                resultPoints.RemoveAt(resultPoints.Count - 1);
 
                 return false;
             }
@@ -304,7 +302,7 @@ namespace MapGenearionLibrary.Navigation
                         }
                     }
 
-                    path.Remove(currentElement);
+                    path.RemoveAt(path.Count - 1);
 
                     return theNextRoomExists;
                 }
