@@ -162,6 +162,110 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
+        public MapPoint[] FindPathInRoom(MapPoint pointFrom, MapPoint pointTo) => FindPathInRoom(
+            NavigationHandler.GetRoom(pointFrom)
+            ,
+            pointFrom
+            ,
+            pointTo
+            );
+
+        public MapPoint[] FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo)
+        {
+            if (room is null || !(room.DoesRoomContainsPoint(pointFrom) && room.DoesRoomContainsPoint(pointTo)))
+            {
+                return Array.Empty<MapPoint>();
+            }
+
+            List<MapPoint> resultPoints = new List<MapPoint>();
+
+            bool _FindPathInRoom(MapPoint currentPoint)
+            {
+                if (!room.DoesRoomContainsPoint(currentPoint) 
+                    || NavigationHandler.Obstacles[currentPoint]
+                    || resultPoints.FirstOrDefault(point => point.AreEqual(currentPoint)) is not null)
+                {
+                    return false;
+                }
+
+                resultPoints.Add(currentPoint);
+
+                if (currentPoint.AreEqual(pointTo))
+                {
+                    return true;
+                }
+
+                int deltaX = Math.Clamp(pointTo.X - currentPoint.X, -1, 1);
+                int deltaY = Math.Clamp(pointTo.Y - currentPoint.Y, -1, 1);
+
+                if (deltaY != 0 && _FindPathInRoom(new MapPoint(currentPoint.X, currentPoint.Y + deltaY)))
+                {
+                    return true;
+                }
+
+                if (deltaX != 0 && _FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y)))
+                {
+                    return true;
+                }
+
+                if (deltaX != 0 && deltaY != 0)
+                {
+                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY] && !NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y])
+                    {
+                        if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY)))
+                        {
+                            return true;
+                        }
+                    }
+
+                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY] && !NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y])
+                    {
+                        if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY)))
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                if (deltaY != 0 && _FindPathInRoom(new MapPoint(currentPoint.X, currentPoint.Y - deltaY)))
+                {
+                    return true;
+                }
+
+                if (deltaX != 0 && _FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y)))
+                {
+                    return true;
+                }
+
+                if (deltaX != 0 && deltaY != 0)
+                {
+                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY] && !NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y])
+                    {
+                        if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY)))
+                        {
+                            return true;
+                        }
+                    }
+
+                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY] && !NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y])
+                    {
+                        if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY)))
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                resultPoints.Remove(currentPoint);
+
+                return false;
+            }
+
+            _FindPathInRoom(pointFrom);
+
+            return resultPoints.ToArray();
+        }
+
         public MapRoom[] GetFathestRecursive()
         {
             (MapNavigationGraphElement[] path, double distance) resultPath = (Array.Empty<MapNavigationGraphElement>(), 0);
