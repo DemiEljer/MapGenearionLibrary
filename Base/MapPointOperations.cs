@@ -31,7 +31,7 @@ namespace MapGenearionLibrary.Base
         {
             var location = GetMapCellLocation(map, x, y);
 
-            return map.Width * y + x;
+            return map.Width * location.y + location.x;
         }
 
         public static double GetDistance(this MapPoint point1, MapPoint point2)
