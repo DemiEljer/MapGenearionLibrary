@@ -179,7 +179,7 @@ namespace MapGenearionLibrary.Navigation
 
             bool _FindPathInRoom(MapPoint currentPoint)
             {
-                if (!room.DoesRoomContainsPoint(currentPoint) 
+                if (!room.DoesRoomContainsPoint(currentPoint)
                     || NavigationHandler.Obstacles[currentPoint]
                     || resultPoints.FirstOrDefault(point => point.AreEqual(currentPoint)) is not null)
                 {
@@ -194,7 +194,26 @@ namespace MapGenearionLibrary.Navigation
                 }
 
                 int deltaX = Math.Clamp(pointTo.X - currentPoint.X, -1, 1);
+
+                if (deltaX == 0)
+                {
+                    deltaX = 1;
+                }
+
                 int deltaY = Math.Clamp(pointTo.Y - currentPoint.Y, -1, 1);
+
+                if (deltaY == 0)
+                {
+                    deltaY = 1;
+                }
+
+                if (deltaX != 0 && deltaY != 0 && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY] && !NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y])
+                {
+                    if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY)))
+                    {
+                        return true;
+                    }
+                }
 
                 if (deltaY != 0 && _FindPathInRoom(new MapPoint(currentPoint.X, currentPoint.Y + deltaY)))
                 {
@@ -208,17 +227,17 @@ namespace MapGenearionLibrary.Navigation
 
                 if (deltaX != 0 && deltaY != 0)
                 {
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY] && !NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y])
+                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY] && !NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y])
                     {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY)))
+                        if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY)))
                         {
                             return true;
                         }
                     }
 
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY] && !NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y])
+                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY] && !NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y])
                     {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY)))
+                        if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY)))
                         {
                             return true;
                         }
@@ -235,22 +254,11 @@ namespace MapGenearionLibrary.Navigation
                     return true;
                 }
 
-                if (deltaX != 0 && deltaY != 0)
+                if (deltaX != 0 && deltaY != 0 && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY] && !NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y])
                 {
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY] && !NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y])
+                    if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY)))
                     {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY] && !NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY)))
-                        {
-                            return true;
-                        }
+                        return true;
                     }
                 }
 
