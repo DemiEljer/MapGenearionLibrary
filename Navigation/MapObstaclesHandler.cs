@@ -12,7 +12,7 @@ namespace MapGenearionLibrary.Navigation
     {
         public Map Map { get; }
 
-        private bool[] _Obstacles { get; }
+        private int[] _Obstacles { get; }
 
         public bool this[MapPoint point]
         {
@@ -32,7 +32,7 @@ namespace MapGenearionLibrary.Navigation
         {
             Map = map;
 
-            _Obstacles = new bool[Map.Width * Map.Height];
+            _Obstacles = new int[Map.Width * Map.Height];
         }
 
         public bool GetCellObstacle(MapPoint point) => GetCellObstacle(point.X, point.Y);
@@ -41,7 +41,7 @@ namespace MapGenearionLibrary.Navigation
         {
             if (_Obstacles.Length > 0)
             {
-                return _Obstacles[Map.GetMapCellLocationIndex(x, y)];
+                return _Obstacles[Map.GetMapCellLocationIndex(x, y)] > 0;
             }
             else
             {
@@ -55,7 +55,10 @@ namespace MapGenearionLibrary.Navigation
         {
             if (_Obstacles.Length > 0)
             {
-                _Obstacles[Map.GetMapCellLocationIndex(x, y)] = obstacleExistance;
+                int cellIndex = Map.GetMapCellLocationIndex(x, y);
+
+                _Obstacles[cellIndex] += obstacleExistance ? 1 : -1;
+                _Obstacles[cellIndex] = Math.Max(0, _Obstacles[cellIndex]);
 
                 ObstacleHasBeenChanged?.Invoke(x, y, obstacleExistance);
             }

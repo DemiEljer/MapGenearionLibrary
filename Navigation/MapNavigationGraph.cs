@@ -40,12 +40,28 @@ namespace MapGenearionLibrary.Navigation
 
         public MapNavigationGraphElement? GetElement(MapPoint point) => Nodes.FirstOrDefault(node => MapPointOperations.DoesRoomContainsPoint(node.Room, point));
 
+        public MapRoom[] GetNeighbourRooms(MapPoint point)
+        {
+            var element = GetElement(point);
+
+            if (element is not null)
+            {
+                return element.RoomsTo.Select(element => element.Element.Room).ToArray();
+            }
+            else
+            {
+                return Array.Empty<MapRoom>();
+            }
+        }
+
         public MapNavigationGraphPath[] GetPathes(MapPoint pointFrom, MapPoint pointTo)
         {
             MapNavigationGraphElement? roomFrom = GetElement(pointFrom);
             MapNavigationGraphElement? roomTo = GetElement(pointTo);
 
-            if (roomFrom is null || roomTo is null)
+            if (roomFrom is null 
+                || roomTo is null 
+                || NavigationHandler.Obstacles[pointTo])
             {
                 return Array.Empty<MapNavigationGraphPath>();
             }
@@ -72,7 +88,7 @@ namespace MapGenearionLibrary.Navigation
                     {
                         if (currentDistance < minDistanationDistance)
                         {
-                            currentPointPath.Add((currentPosition, currentRoom.Room));
+                            currentPointPath.Add((pointTo, currentRoom.Room));
 
                             resultPathes.Add(new MapNavigationGraphPath()
                             {
@@ -109,7 +125,11 @@ namespace MapGenearionLibrary.Navigation
                     else
                     {
                         var nextRooms = currentRoom.RoomsTo
-                        .Where(room => !NavigationHandler.Obstacles[room.Door.Area1] && !NavigationHandler.Obstacles[room.Door.Area2])
+                        .Where(room => 
+                            (!NavigationHandler.Obstacles[room.Door.Area1] 
+                            && !NavigationHandler.Obstacles[room.Door.Area2]) 
+                            || room.Door.Area1.AreEqual(pointFrom)
+                            || room.Door.Area2.AreEqual(pointFrom))
                         .Select(room =>
                         {
                             if (MapPointOperations.DoesRoomContainsPoint(currentRoom.Room, room.Door.Area1))
@@ -139,7 +159,7 @@ namespace MapGenearionLibrary.Navigation
                             }
                             else
                             {
-                                currentPointPath.Add((nextRoom.Item1, nextRoom.Item3.Element.Room));
+                                currentPointPath.Add((nextRoom.Item1, currentRoom.Room));
 
                                 _PathFinder(nextRoom.Item3.Element, nextRoom.Item2);
 
@@ -170,7 +190,9 @@ namespace MapGenearionLibrary.Navigation
 
         public MapPoint[] FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo)
         {
-            if (room is null || !(room.DoesRoomContainsPoint(pointFrom) && room.DoesRoomContainsPoint(pointTo)))
+            if (room is null 
+                || !(room.DoesRoomContainsPoint(pointFrom) && room.DoesRoomContainsPoint(pointTo))
+                || pointFrom.AreEqual(pointTo))
             {
                 return Array.Empty<MapPoint>();
             }
@@ -180,7 +202,7 @@ namespace MapGenearionLibrary.Navigation
             bool _FindPathInRoom(MapPoint currentPoint)
             {
                 if (!room.DoesRoomContainsPoint(currentPoint)
-                    || NavigationHandler.Obstacles[currentPoint]
+                    || (NavigationHandler.Obstacles[currentPoint] && !currentPoint.AreEqual(pointFrom))
                     || resultPoints.FirstOrDefault(point => point.AreEqual(currentPoint)) is not null)
                 {
                     return false;
@@ -371,6 +393,103 @@ namespace MapGenearionLibrary.Navigation
             _FindPathInRoom(pointFrom);
 
             return resultPoints.ToArray();
+        }
+
+        public MapPoint[] FindDirectionInRoom(MapPoint pointFrom, MapPoint pointTo) => FindDirectionInRoom(
+            NavigationHandler.GetRoom(pointFrom)
+            ,
+            pointFrom
+            ,
+            pointTo
+            );
+
+        public MapPoint[] FindDirectionInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo)
+        {
+            if (room is null || !room.DoesRoomContainsPoint(pointFrom))
+            {
+                return Array.Empty<MapPoint>();
+            }
+
+            MapPoint _CheckPoint(MapPoint point)
+            {
+                if (room.DoesRoomContainsPoint(point)
+                    && !NavigationHandler.Obstacles[point])
+                {
+                    return point;
+                }
+                else
+                {
+                    return null;
+                }
+            }
+
+            int deltaX = Math.Clamp(pointTo.X - pointFrom.X, -1, 1);
+            int deltaY = Math.Clamp(pointTo.Y - pointFrom.Y, -1, 1);
+
+            if (deltaX == 0 && deltaY == 0)
+            {
+                deltaX = 1;
+                deltaY = 1;
+            }
+            else if (deltaX == 0 && deltaY != 0)
+            {
+                deltaX = deltaY;
+            }
+            else if (deltaX != 0 && deltaY == 0)
+            {
+                deltaY = deltaX;
+            }
+
+            IEnumerable<MapPoint> _GetNearbyPoints()
+            {
+                MapPoint point = _CheckPoint(new MapPoint(pointFrom.X - deltaX, pointFrom.Y - deltaY));
+                if (point is not null)
+                {
+                    yield return point;
+                }
+                point = _CheckPoint(new MapPoint(pointFrom.X - deltaX, pointFrom.Y));
+                if (point is not null)
+                {
+                    yield return point;
+                }
+                point = _CheckPoint(new MapPoint(pointFrom.X, pointFrom.Y - deltaY));
+                if (point is not null)
+                {
+                    yield return point;
+                }
+                point = _CheckPoint(new MapPoint(pointFrom.X - deltaX, pointFrom.Y + deltaY));
+                if (point is not null)
+                {
+                    yield return point;
+                }
+                point = _CheckPoint(new MapPoint(pointFrom.X + deltaX, pointFrom.Y - deltaY));
+                if (point is not null)
+                {
+                    yield return point;
+                }
+                point = _CheckPoint(new MapPoint(pointFrom.X + deltaX, pointFrom.Y));
+                if (point is not null)
+                {
+                    yield return point;
+                }
+                point = _CheckPoint(new MapPoint(pointFrom.X, pointFrom.Y + deltaY));
+                if (point is not null)
+                {
+                    yield return point;
+                }
+                point = _CheckPoint(new MapPoint(pointFrom.X + deltaX, pointFrom.Y + deltaY));
+                if (point is not null)
+                {
+                    yield return point;
+                }
+                point = _CheckPoint(new MapPoint(pointFrom.X, pointFrom.Y));
+                if (point is not null)
+                {
+                    yield return point;
+                }
+            }
+
+            return _GetNearbyPoints().ToArray();
         }
 
         public MapRoom[] GetFathestRecursive()

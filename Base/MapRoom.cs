@@ -22,5 +22,17 @@ namespace MapGenearionLibrary.Base
         {
             Doors = doors;
         }
+
+        public bool AreEqual(MapRoom anotherRoom)
+        {
+            if (anotherRoom is null)
+            {
+                return false;
+            }
+            else
+            {
+                return StartX == anotherRoom.StartX && StartY == anotherRoom.StartY;
+            }
+        }
     }
 }
