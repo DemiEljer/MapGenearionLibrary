@@ -124,10 +124,27 @@ namespace MapGenearionLibrary.Navigation
                     }
                     else
                     {
-                        var nextRooms = currentRoom.RoomsTo
-                        .Where(room => 
-                            (!NavigationHandler.Obstacles[room.Door.Area1] 
-                            && !NavigationHandler.Obstacles[room.Door.Area2]) 
+                        IEnumerable<(MapNavigationGraphElement Element, MapDoor Door)> _GetNextRooms()
+                        {
+                            var nextTargetRoom = currentRoom.RoomsTo.FirstOrDefault(room => room.Element.Room.AreEqual(roomTo.Room));
+
+                            if (nextTargetRoom.Element is not null)
+                            {
+                                yield return nextTargetRoom;
+                            }
+                            else
+                            {
+                                foreach (var nextRoom in currentRoom.RoomsTo)
+                                {
+                                    yield return nextRoom;
+                                }
+                            }
+                        }
+
+                        var nextRooms = _GetNextRooms()
+                        .Where(room =>
+                            (!NavigationHandler.Obstacles[room.Door.Area1]
+                            && !NavigationHandler.Obstacles[room.Door.Area2])
                             || room.Door.Area1.AreEqual(pointFrom)
                             || room.Door.Area2.AreEqual(pointFrom))
                         .Select(room =>
