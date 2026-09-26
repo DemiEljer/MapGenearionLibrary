@@ -54,7 +54,7 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        public MapNavigationGraphPath[] GetPathes(MapPoint pointFrom, MapPoint pointTo)
+        public MapNavigationGraphPath[] GetPathes(MapPoint pointFrom, MapPoint pointTo, int layersCount = -1)
         {
             MapNavigationGraphElement? roomFrom = GetElement(pointFrom);
             MapNavigationGraphElement? roomTo = GetElement(pointTo);
@@ -72,6 +72,7 @@ namespace MapGenearionLibrary.Navigation
                 List<(MapPoint point, MapRoom room)> currentPointPath = new();
                 double minDistanationDistance = double.MaxValue;
                 double currentDistance = 0;
+                int currentLayerIndex = 0;
 
                 void _PathFinder(MapNavigationGraphElement currentRoom, MapPoint currentPosition)
                 {
@@ -83,6 +84,7 @@ namespace MapGenearionLibrary.Navigation
 
                     currentElementPath.Add(currentRoom);
                     currentPointPath.Add((currentPosition, currentRoom.Room));
+                    currentLayerIndex++;
 
                     if (currentRoom == roomTo)
                     {
@@ -124,6 +126,11 @@ namespace MapGenearionLibrary.Navigation
                     }
                     else
                     {
+                        if (currentLayerIndex > layersCount && layersCount >= 0)
+                        {
+                            return;
+                        }
+
                         IEnumerable<(MapNavigationGraphElement Element, MapDoor Door)> _GetNextRooms()
                         {
                             var nextTargetRoom = currentRoom.RoomsTo.FirstOrDefault(room => room.Element.Room.AreEqual(roomTo.Room));
@@ -189,6 +196,7 @@ namespace MapGenearionLibrary.Navigation
 
                     currentElementPath.RemoveAt(currentElementPath.Count - 1);
                     currentPointPath.RemoveAt(currentPointPath.Count - 1);
+                    currentLayerIndex--;
                 }
 
                 _PathFinder(roomFrom, pointFrom);

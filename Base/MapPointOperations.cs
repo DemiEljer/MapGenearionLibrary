@@ -64,5 +64,8 @@ namespace MapGenearionLibrary.Base
 
         public static MapPoint GetRoomCenter(this MapRoom room) =>
             new MapPoint(room.StartX + room.Width / 2, room.StartY + room.Height / 2);
+
+        public static bool DoesDoorContainsPoint(this MapDoor door, MapPoint point) =>
+            door.Area1.AreEqual(point) || door.Area2.AreEqual(point);
     }
 }
