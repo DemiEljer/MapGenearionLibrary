@@ -227,7 +227,7 @@ namespace MapGenearionLibrary.Navigation
             bool _FindPathInRoom(MapPoint currentPoint)
             {
                 if (!room.DoesRoomContainsPoint(currentPoint)
-                    || (NavigationHandler.Obstacles[currentPoint] && !currentPoint.AreEqual(pointFrom))
+                    || NavigationHandler.Obstacles[currentPoint]
                     || resultPoints.FirstOrDefault(point => point.AreEqual(currentPoint)) is not null)
                 {
                     return false;
