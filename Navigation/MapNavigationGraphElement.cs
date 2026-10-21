@@ -11,7 +11,7 @@ namespace MapGenearionLibrary.Navigation
     {
         public MapRoom Room { get; }
 
-        public (MapNavigationGraphElement Element, MapDoor Door)[] RoomsTo { get; internal set; } = Array.Empty<(MapNavigationGraphElement Element, MapDoor Door)>();
+        public (MapNavigationGraphElement Element, MapDoor[] Doors)[] RoomsTo { get; internal set; } = Array.Empty<(MapNavigationGraphElement Element, MapDoor[] Door)>();
 
         public MapNavigationGraphElement(MapRoom room)
         {
