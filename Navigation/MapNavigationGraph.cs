@@ -58,7 +58,7 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        public MapNavigationGraphPath[] GetPathes(MapPoint pointFrom, MapPoint pointTo, int layersCount = -1)
+        public MapNavigationGraphPath[] FindPathesRecursive(MapPoint pointFrom, MapPoint pointTo, int layersCount = -1)
         {
             MapNavigationGraphElement? roomFrom = GetElement(pointFrom);
             MapNavigationGraphElement? roomTo = GetElement(pointTo);
@@ -242,8 +242,13 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        public MapNavigationGraphPath GetPathesWave(MapPoint pointFrom, MapPoint pointTo, int layersCount = -1)
+        public MapNavigationGraphPath? FindPathWave(MapPoint pointFrom, MapPoint pointTo, int layersCount = -1)
         {
+            if (NavigationHandler.Obstacles[pointTo])
+            {
+                return null;
+            }
+
             MapNavigationGraphElement roomFrom = GetElement(pointFrom);
             MapNavigationGraphElement roomTo = GetElement(pointTo);
 
@@ -259,6 +264,7 @@ namespace MapGenearionLibrary.Navigation
                 foreach (var nextRoom in roomsSequence.TakeLast(roomsSequence.Length - 1))
                 {
                     var doorsTo = nextRoom.Doors
+                        .Where(door => !NavigationHandler.Obstacles[door.Area1] && !NavigationHandler.Obstacles[door.Area2])
                         .Select(door =>
                         {
                             if (currentPointPath.Last.Value.Room.DoesRoomContainsPoint(door.Area1))
@@ -274,13 +280,19 @@ namespace MapGenearionLibrary.Navigation
 
                     var nearestDoor = doorsTo.First();
 
-                    currentPointPath.AddLast((nearestDoor.Item1, currentPointPath.Last.Value.Room));
+                    if (!currentPointPath.Last.Value.Point.AreEqual(nearestDoor.Item1))
+                    {
+                        currentPointPath.AddLast((nearestDoor.Item1, currentPointPath.Last.Value.Room));
+                    }
                     currentPointPath.AddLast((nearestDoor.Item2, nextRoom.CurrentElement.Room));
                     currentDistance += nearestDoor.Item3;
                 }
 
-                currentDistance += currentPointPath.Last.Value.Point.GetDistance(pointTo);
-                currentPointPath.AddLast((pointTo, roomTo.Room));
+                if (!currentPointPath.Last.Value.Point.AreEqual(pointTo))
+                {
+                    currentDistance += currentPointPath.Last.Value.Point.GetDistance(pointTo);
+                    currentPointPath.AddLast((pointTo, roomTo.Room));
+                }
 
                 return new MapNavigationGraphPath()
                 {
@@ -314,8 +326,8 @@ namespace MapGenearionLibrary.Navigation
             {
                 LinkedList<RoomPathelement> pathesWave = new();
                 Dictionary<MapNavigationGraphElement, RoomPathelement> passedElements = new();
-                
-                {   
+
+                {
                     double minDistance = double.MaxValue;
                     RoomPathelement targetSequenceElement = null;
 
@@ -346,7 +358,8 @@ namespace MapGenearionLibrary.Navigation
 
                     bool _AddWaveElementWithDoors(RoomPathelement prev, (MapNavigationGraphElement Element, MapDoor[] Doors) room)
                     {
-                        if (passedElements.ContainsKey(room.Element))
+                        if (passedElements.ContainsKey(room.Element)
+                            || room.Doors.FirstOrDefault(door => !NavigationHandler.Obstacles[door.Area1] && !NavigationHandler.Obstacles[door.Area2]) == null)
                         {
                             return false;
                         }
@@ -373,7 +386,7 @@ namespace MapGenearionLibrary.Navigation
                         {
                             foreach (var nextRoom in element.CurrentElement.RoomsTo)
                             {
-                                if (element.Distance < minDistance)
+                                if (minDistance > element.Distance)
                                 {
                                     _AddWaveElementWithDoors(element, nextRoom);
                                 }
@@ -416,6 +429,19 @@ namespace MapGenearionLibrary.Navigation
             pointTo
             );
 
+        class RoomPathElement
+        {
+            public RoomPathElement PreviousElement { get; }
+
+            public MapPoint Point { get; }
+
+            public RoomPathElement(RoomPathElement previousElement, MapPoint point)
+            {
+                PreviousElement = previousElement;
+                Point = point;
+            }
+        }
+
         public MapPoint[] FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo)
         {
             if (room is null
@@ -424,203 +450,174 @@ namespace MapGenearionLibrary.Navigation
             {
                 return Array.Empty<MapPoint>();
             }
-
-            List<MapPoint> resultPoints = new List<MapPoint>();
-
-            bool _FindPathInRoom(MapPoint currentPoint)
+            else
             {
-                if (!room.DoesRoomContainsPoint(currentPoint)
-                    || NavigationHandler.Obstacles[currentPoint]
-                    || resultPoints.FirstOrDefault(point => point.AreEqual(currentPoint)) is not null)
+                LinkedList<RoomPathElement> pathesWave = new();
+                Dictionary<long, RoomPathElement> passedPoints = new();
+
                 {
-                    return false;
+                    RoomPathElement targetSequenceElement = null;
+
+                    IEnumerable<MapPoint> _GetPathFromSequence()
+                    {
+                        while (targetSequenceElement is not null)
+                        {
+                            yield return targetSequenceElement.Point;
+
+                            targetSequenceElement = targetSequenceElement.PreviousElement;
+                        }
+                    }
+
+                    bool _AddWaveElement(RoomPathElement prev, MapPoint point)
+                    {
+                        if (passedPoints.ContainsKey(point.GetUniqCode())
+                            || !room.DoesRoomContainsPoint(point)
+                            || NavigationHandler.Obstacles[point])
+                        {
+                            return false;
+                        }
+                        else
+                        {
+                            pathesWave.AddLast(new RoomPathElement(prev, point));
+                            passedPoints.Add(point.GetUniqCode(), pathesWave.Last.Value);
+
+                            return true;
+                        }
+                    }
+
+                    bool _HandleWaveElement(RoomPathElement element)
+                    {
+                        if (element.Point.AreEqual(pointTo))
+                        {
+                            targetSequenceElement = element;
+
+                            return true;
+                        }
+                        else
+                        {
+                            var currentPoint = element.Point;
+
+                            int deltaX = Math.Clamp(pointTo.X - currentPoint.X, -1, 1);
+                            int deltaY = Math.Clamp(pointTo.Y - currentPoint.Y, -1, 1);
+
+                            if (deltaX != 0 && deltaY != 0)
+                            {
+                                if (!NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                {
+                                    _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY));
+                                }
+
+                                _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y));
+                                _AddWaveElement(element, new MapPoint(currentPoint.X, currentPoint.Y + deltaY));
+
+                                if (!NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                {
+                                    _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY));
+                                }
+                                if (!NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                {
+                                    _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY));
+                                }
+
+                                _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y));
+                                _AddWaveElement(element, new MapPoint(currentPoint.X, currentPoint.Y - deltaY));
+
+                                if (!NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                {
+                                    _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY));
+                                }
+                            }
+                            else if (deltaX != 0)
+                            {
+                                deltaY = deltaX;
+
+                                _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y));
+
+                                if (!NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                {
+                                    _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY));
+                                }
+                                if (!NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                {
+                                    _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY));
+                                }
+
+                                _AddWaveElement(element, new MapPoint(currentPoint.X, currentPoint.Y + deltaY));
+                                _AddWaveElement(element, new MapPoint(currentPoint.X, currentPoint.Y - deltaY));
+
+                                if (!NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                {
+                                    _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY));
+                                }
+                                if (!NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                {
+                                    _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY));
+                                }
+
+                                _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y));
+
+                            }
+                            else if (deltaY != 0)
+                            {
+                                deltaX = deltaY;
+
+                                _AddWaveElement(element, new MapPoint(currentPoint.X, currentPoint.Y + deltaY));
+
+                                if (!NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                {
+                                    _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY));
+                                }
+                                if (!NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                {
+                                    _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY));
+                                }
+
+                                _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y));
+                                _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y));
+
+                                if (!NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                {
+                                    _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY));
+                                }
+                                if (!NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                {
+                                    _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY));
+                                }
+
+                                _AddWaveElement(element, new MapPoint(currentPoint.X, currentPoint.Y - deltaY));
+                            }
+
+                            return false;
+                        }
+                    }
+
+                    _AddWaveElement(null, pointFrom);
+                    bool terminationFlag = false;
+
+                    while (pathesWave.Count > 0 && !terminationFlag)
+                    {
+                        int currentWaveSise = pathesWave.Count;
+
+                        for (int i = 0; i < currentWaveSise; i++)
+                        {
+                            if (_HandleWaveElement(pathesWave.First.Value))
+                            {
+                                terminationFlag = true;
+                                break;
+                            }
+
+                            pathesWave.RemoveFirst();
+                        }
+
+                        if (terminationFlag)
+                        {
+                            break;
+                        }
+                    }
+
+                    return _GetPathFromSequence().Reverse().ToArray();
                 }
-
-                resultPoints.Add(currentPoint);
-
-                if (currentPoint.AreEqual(pointTo))
-                {
-                    return true;
-                }
-
-                int deltaX = Math.Clamp(pointTo.X - currentPoint.X, -1, 1);
-                int deltaY = Math.Clamp(pointTo.Y - currentPoint.Y, -1, 1);
-
-                if (deltaX != 0 && deltaY != 0)
-                {
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY] && !NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-
-                    if (_FindPathInRoom(new MapPoint(currentPoint.X, currentPoint.Y + deltaY)))
-                    {
-                        return true;
-                    }
-
-                    if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y)))
-                    {
-                        return true;
-                    }
-
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY] && !NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY] && !NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-
-                    if (_FindPathInRoom(new MapPoint(currentPoint.X, currentPoint.Y - deltaY)))
-                    {
-                        return true;
-                    }
-
-                    if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y)))
-                    {
-                        return true;
-                    }
-
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY] && !NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-                }
-                else if (deltaX != 0)
-                {
-                    deltaY = deltaX;
-
-                    if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y)))
-                    {
-                        return true;
-                    }
-
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY] && !NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY] && !NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-
-                    if (_FindPathInRoom(new MapPoint(currentPoint.X, currentPoint.Y + deltaY)))
-                    {
-                        return true;
-                    }
-
-                    if (_FindPathInRoom(new MapPoint(currentPoint.X, currentPoint.Y - deltaY)))
-                    {
-                        return true;
-                    }
-
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY] && !NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY] && !NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-
-                    if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y)))
-                    {
-                        return true;
-                    }
-                }
-                else if (deltaY != 0)
-                {
-                    deltaX = deltaY;
-
-                    if (_FindPathInRoom(new MapPoint(currentPoint.X, currentPoint.Y + deltaY)))
-                    {
-                        return true;
-                    }
-
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY] && !NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY] && !NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-
-                    if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y)))
-                    {
-                        return true;
-                    }
-
-                    if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y)))
-                    {
-                        return true;
-                    }
-
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY] && !NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-
-                    if (!NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY] && !NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y])
-                    {
-                        if (_FindPathInRoom(new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY)))
-                        {
-                            return true;
-                        }
-                    }
-
-                    if (_FindPathInRoom(new MapPoint(currentPoint.X, currentPoint.Y - deltaY)))
-                    {
-                        return true;
-                    }
-                }
-
-                resultPoints.RemoveAt(resultPoints.Count - 1);
-
-                return false;
             }
-
-            _FindPathInRoom(pointFrom);
-
-            return resultPoints.ToArray();
         }
 
         public MapPoint[] FindDirectionInRoom(MapPoint pointFrom, MapPoint pointTo) => FindDirectionInRoom(
@@ -796,22 +793,62 @@ namespace MapGenearionLibrary.Navigation
                 {
                     var pointTo = MapPointOperations.GetRoomCenter(nodeTo.Room);
 
-                    var pathes = GetPathes(pointFrom, pointTo);
+                    var path = FindPathWave(pointFrom, pointTo);
 
-                    if (pathes.Length > 0)
+                    if (path is not null)
                     {
-                        var foundPath = pathes.First();
-
                         if (resultPath is null
-                            || resultPath.Distance < foundPath.Distance)
+                            || resultPath.Distance < path.Distance)
                         {
-                            resultPath = foundPath;
+                            resultPath = path;
                         }
                     }
                 }
             }
 
             return resultPath;
+        }
+
+        public IEnumerable<MapPoint> GetPathPoints(MapNavigationGraphPath path)
+        {
+            if (path is null)
+            {
+                yield break;
+            }
+
+            for (int pointIndex = 0; pointIndex < path.PointsSequence.Length; pointIndex++)
+            {
+                if (pointIndex == 0)
+                {
+                    yield return path.PointsSequence[pointIndex].Point;
+                }
+                else
+                {
+                    if (path.PointsSequence[pointIndex].Room.AreEqual(path.PointsSequence[pointIndex - 1].Room))
+                    {
+                        var pathInRoom = FindPathInRoom(
+                            path.PointsSequence[pointIndex].Room
+                            , path.PointsSequence[pointIndex - 1].Point
+                            , path.PointsSequence[pointIndex].Point);
+
+                        if (pathInRoom.Length == 0)
+                        {
+                            throw new ArgumentException("Невозможно построить путь");
+                        }
+                        else
+                        {
+                            for (int pointInRoomIndex = 1; pointInRoomIndex < pathInRoom.Length; pointInRoomIndex++)
+                            {
+                                yield return pathInRoom[pointInRoomIndex];
+                            }
+                        }
+                    }
+                    else
+                    {
+                        yield return path.PointsSequence[pointIndex].Point;
+                    }
+                }
+            }
         }
     }
 }

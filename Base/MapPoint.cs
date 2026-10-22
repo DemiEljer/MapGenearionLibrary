@@ -25,5 +25,15 @@ namespace MapGenearionLibrary.Base
         public MapPoint Clone() => new MapPoint(X, Y);
 
         public bool Compare(MapPoint anotherPoint) => X == anotherPoint.X && Y == anotherPoint.Y;
+
+        public override int GetHashCode()
+        {
+            return (X & 0xFFFF) | ((Y & 0xFFFF) << 16);
+        }
+
+        public long GetUniqCode()
+        {
+            return (long)(X) | ((long)(Y) << 32);
+        }
     }
 }
