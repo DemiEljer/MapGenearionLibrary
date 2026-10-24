@@ -40,9 +40,11 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        public MapNavigationGraphElement? GetElement(MapPoint point) => Nodes.FirstOrDefault(node => MapPointOperations.DoesRoomContainsPoint(node.Room, point));
+        public MapNavigationGraphElement? GetElement(MapPoint point) => 
+            Nodes.FirstOrDefault(node => MapPointOperations.DoesRoomContainsPoint(node.Room, point));
 
-        public MapNavigationGraphElement? GetElement(MapRoom room) => Nodes.FirstOrDefault(node => node.Room == room);
+        public MapNavigationGraphElement? GetElement(MapRoom room) => 
+            Nodes.FirstOrDefault(node => node.Room == room);
 
         public MapRoom[] GetNeighbourRooms(MapPoint point)
         {
@@ -65,7 +67,7 @@ namespace MapGenearionLibrary.Navigation
 
             if (roomFrom is null
                 || roomTo is null
-                || NavigationHandler.Obstacles[pointTo])
+                || NavigationHandler.StaticObstacles[pointTo])
             {
                 return Array.Empty<MapNavigationGraphPath>();
             }
@@ -160,8 +162,8 @@ namespace MapGenearionLibrary.Navigation
 
                         var nextRooms = _GetNextRooms()
                         .Where(room =>
-                            (!NavigationHandler.Obstacles[room.Door.Area1]
-                            && !NavigationHandler.Obstacles[room.Door.Area2])
+                            (!NavigationHandler.StaticObstacles[room.Door.Area1]
+                            && !NavigationHandler.StaticObstacles[room.Door.Area2])
                             || room.Door.Area1.AreEqual(pointFrom)
                             || room.Door.Area2.AreEqual(pointFrom))
                         .Select(room =>
@@ -244,7 +246,7 @@ namespace MapGenearionLibrary.Navigation
 
         public MapNavigationGraphPath? FindPathWave(MapPoint pointFrom, MapPoint pointTo, int layersCount = -1)
         {
-            if (NavigationHandler.Obstacles[pointTo])
+            if (NavigationHandler.StaticObstacles[pointTo])
             {
                 return null;
             }
@@ -264,7 +266,7 @@ namespace MapGenearionLibrary.Navigation
                 foreach (var nextRoom in roomsSequence.TakeLast(roomsSequence.Length - 1))
                 {
                     var doorsTo = nextRoom.Doors
-                        .Where(door => !NavigationHandler.Obstacles[door.Area1] && !NavigationHandler.Obstacles[door.Area2])
+                        .Where(door => !NavigationHandler.StaticObstacles[door.Area1] && !NavigationHandler.StaticObstacles[door.Area2])
                         .Select(door =>
                         {
                             if (currentPointPath.Last.Value.Room.DoesRoomContainsPoint(door.Area1))
@@ -359,7 +361,7 @@ namespace MapGenearionLibrary.Navigation
                     bool _AddWaveElementWithDoors(RoomPathelement prev, (MapNavigationGraphElement Element, MapDoor[] Doors) room)
                     {
                         if (passedElements.ContainsKey(room.Element)
-                            || room.Doors.FirstOrDefault(door => !NavigationHandler.Obstacles[door.Area1] && !NavigationHandler.Obstacles[door.Area2]) == null)
+                            || room.Doors.FirstOrDefault(door => !NavigationHandler.StaticObstacles[door.Area1] && !NavigationHandler.StaticObstacles[door.Area2]) == null)
                         {
                             return false;
                         }
@@ -421,14 +423,6 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        public MapPoint[] FindPathInRoom(MapPoint pointFrom, MapPoint pointTo) => FindPathInRoom(
-            NavigationHandler.GetRoom(pointFrom)
-            ,
-            pointFrom
-            ,
-            pointTo
-            );
-
         class RoomPathElement
         {
             public RoomPathElement PreviousElement { get; }
@@ -442,13 +436,28 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        public MapPoint[] FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo)
+        public MapPoint[] FindPathInRoom(MapPoint pointFrom, MapPoint pointTo) => 
+            FindPathInRoom(NavigationHandler.GetRoom(pointFrom), pointFrom, pointTo);
+
+        public MapPoint[] FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo) => 
+            _FindPathInRoom(room, pointFrom, pointTo)
+            .ToArray();
+
+        public MapPoint[] FindPathInRoomDynamic(MapPoint pointFrom, MapPoint pointTo, Object owner) => 
+            FindPathInRoomDynamic(NavigationHandler.GetRoom(pointFrom), pointFrom, pointTo, owner);
+
+        public MapPoint[] FindPathInRoomDynamic(MapRoom room, MapPoint pointFrom, MapPoint pointTo, Object owner) => 
+            _FindPathInRoom(room, pointFrom, pointTo)
+            .TakeWhile(point => NavigationHandler.DynamicObstacles[point, owner])
+            .ToArray();
+
+        private IEnumerable<MapPoint> _FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo)
         {
             if (room is null
                 || !(room.DoesRoomContainsPoint(pointFrom) && room.DoesRoomContainsPoint(pointTo))
                 || pointFrom.AreEqual(pointTo))
             {
-                return Array.Empty<MapPoint>();
+                return Enumerable.Empty<MapPoint>();
             }
             else
             {
@@ -472,7 +481,7 @@ namespace MapGenearionLibrary.Navigation
                     {
                         if (passedPoints.ContainsKey(point.GetUniqCode())
                             || !room.DoesRoomContainsPoint(point)
-                            || NavigationHandler.Obstacles[point])
+                            || NavigationHandler.StaticObstacles[point])
                         {
                             return false;
                         }
@@ -502,7 +511,7 @@ namespace MapGenearionLibrary.Navigation
 
                             if (deltaX != 0 && deltaY != 0)
                             {
-                                if (!NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
                                 {
                                     _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY));
                                 }
@@ -510,11 +519,11 @@ namespace MapGenearionLibrary.Navigation
                                 _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y));
                                 _AddWaveElement(element, new MapPoint(currentPoint.X, currentPoint.Y + deltaY));
 
-                                if (!NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
                                 {
                                     _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY));
                                 }
-                                if (!NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
                                 {
                                     _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY));
                                 }
@@ -522,7 +531,7 @@ namespace MapGenearionLibrary.Navigation
                                 _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y));
                                 _AddWaveElement(element, new MapPoint(currentPoint.X, currentPoint.Y - deltaY));
 
-                                if (!NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
                                 {
                                     _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY));
                                 }
@@ -533,11 +542,11 @@ namespace MapGenearionLibrary.Navigation
 
                                 _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y));
 
-                                if (!NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
                                 {
                                     _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY));
                                 }
-                                if (!NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
                                 {
                                     _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY));
                                 }
@@ -545,11 +554,11 @@ namespace MapGenearionLibrary.Navigation
                                 _AddWaveElement(element, new MapPoint(currentPoint.X, currentPoint.Y + deltaY));
                                 _AddWaveElement(element, new MapPoint(currentPoint.X, currentPoint.Y - deltaY));
 
-                                if (!NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
                                 {
                                     _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY));
                                 }
-                                if (!NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
                                 {
                                     _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY));
                                 }
@@ -563,11 +572,11 @@ namespace MapGenearionLibrary.Navigation
 
                                 _AddWaveElement(element, new MapPoint(currentPoint.X, currentPoint.Y + deltaY));
 
-                                if (!NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
                                 {
                                     _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY));
                                 }
-                                if (!NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
                                 {
                                     _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY));
                                 }
@@ -575,11 +584,11 @@ namespace MapGenearionLibrary.Navigation
                                 _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y));
                                 _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y));
 
-                                if (!NavigationHandler.Obstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
                                 {
                                     _AddWaveElement(element, new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY));
                                 }
-                                if (!NavigationHandler.Obstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.Obstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
                                 {
                                     _AddWaveElement(element, new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY));
                                 }
@@ -615,18 +624,13 @@ namespace MapGenearionLibrary.Navigation
                         }
                     }
 
-                    return _GetPathFromSequence().Reverse().ToArray();
+                    return _GetPathFromSequence().Reverse();
                 }
             }
         }
 
-        public MapPoint[] FindDirectionInRoom(MapPoint pointFrom, MapPoint pointTo) => FindDirectionInRoom(
-            NavigationHandler.GetRoom(pointFrom)
-            ,
-            pointFrom
-            ,
-            pointTo
-            );
+        public MapPoint[] FindDirectionInRoom(MapPoint pointFrom, MapPoint pointTo) => 
+            FindDirectionInRoom(NavigationHandler.GetRoom(pointFrom), pointFrom, pointTo);
 
         public MapPoint[] FindDirectionInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo)
         {
@@ -638,7 +642,7 @@ namespace MapGenearionLibrary.Navigation
             MapPoint _CheckPoint(MapPoint point)
             {
                 if (room.DoesRoomContainsPoint(point)
-                    && !NavigationHandler.Obstacles[point])
+                    && !NavigationHandler.StaticObstacles[point])
                 {
                     return point;
                 }

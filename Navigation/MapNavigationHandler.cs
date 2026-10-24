@@ -17,7 +17,9 @@ namespace MapGenearionLibrary.Navigation
 
         public MapNavigationGraph NavigationGraph { get; }
 
-        public MapObstaclesHandler Obstacles { get; }
+        public MapObstaclesHandler StaticObstacles { get; }
+
+        public MapDynamicObstaclesHandler DynamicObstacles { get; }
 
         private MapSeperationAreaIterator? _AreasIterator { get; } = null;
 
@@ -33,7 +35,8 @@ namespace MapGenearionLibrary.Navigation
             _AssosiateRoomsWithDoors();
 
             NavigationGraph = new(this);
-            Obstacles = new(Map);
+            StaticObstacles = new(Map);
+            DynamicObstacles = new(Map);
         }
 
         private void _GetAllDoors()
