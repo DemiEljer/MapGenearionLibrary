@@ -12,6 +12,16 @@ namespace MapGenearionLibrary.Base
 
         public int Y { get; private set; } = 0;
 
+        public static MapPoint operator+(MapPoint point1, MapPoint point2)
+        {
+            return new MapPoint(point1.X + point2.X, point1.Y + point2.Y);
+        }
+
+        public static MapPoint operator -(MapPoint point1, MapPoint point2)
+        {
+            return new MapPoint(point1.X - point2.X, point1.Y - point2.Y);
+        }
+
         public MapPoint() { }
 
         public MapPoint(int x, int y) => Set(x, y);

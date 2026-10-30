@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using static UnityEngine.UI.GridLayoutGroup;
 
 namespace MapGenearionLibrary.Navigation
 {
@@ -12,30 +13,30 @@ namespace MapGenearionLibrary.Navigation
     {
         public Map Map { get; }
 
-        private Object[] _Obstacles { get; }
+        private object[] _Obstacles { get; }
 
-        public bool this[MapPoint point, Object owner]
+        public bool this[MapPoint point, object owner]
         {
             get => GetCellObstacle(point, owner);
         }
 
-        public bool this[int x, int y, Object owner]
+        public bool this[int x, int y, object owner]
         {
             get => GetCellObstacle(x, y, owner);
         }
 
-        public event Action<int, int, Object> ObstacleHasBeenChanged;
+        public event Action<int, int, object> ObstacleHasBeenChanged;
 
         public MapDynamicObstaclesHandler(Map map)
         {
             Map = map;
 
-            _Obstacles = new Object[Map.Width * Map.Height];
+            _Obstacles = new object[Map.Width * Map.Height];
         }
 
-        public bool GetCellObstacle(MapPoint point, Object owner) => GetCellObstacle(point.X, point.Y, owner);
+        public bool GetCellObstacle(MapPoint point, object owner) => GetCellObstacle(point.X, point.Y, owner);
 
-        public bool GetCellObstacle(int x, int y, Object owner)
+        public bool GetCellObstacle(int x, int y, object owner)
         {
             if (_Obstacles.Length > 0)
             {
@@ -49,25 +50,72 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        public void SetCellObstacle(MapPoint point, bool obstacleExistance, Object owner) => SetCellObstacle(point.X, point.Y, obstacleExistance, owner);
+        public void SetCellObstacle(MapPoint point, object owner) => SetCellObstacle(point.X, point.Y, owner);
 
-        public void SetCellObstacle(int x, int y, bool obstacleExistance, Object owner)
+        public void SetCellObstacle(int x, int y, object owner)
         {
             if (_Obstacles.Length > 0)
             {
                 int cellIndex = Map.GetMapCellLocationIndex(x, y);
 
-                if (owner is null)
+                if (owner is null 
+                    || _Obstacles[cellIndex] is null)
+                {
+                    _Obstacles[cellIndex] = owner;
+
+                    ObstacleHasBeenChanged?.Invoke(x, y, owner);
+                }
+            }
+        }
+
+        public object GetCellObstacleOwner(MapPoint point) => GetCellObstacleOwner(point.X, point.Y);
+
+        public object GetCellObstacleOwner(int x, int y)
+        {
+            if (_Obstacles.Length > 0)
+            {
+                return _Obstacles[Map.GetMapCellLocationIndex(x, y)];
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public void ForceTake(MapPoint point, object owner) => ForceTake(point.X, point.Y, owner);
+
+        public void ForceTake(int x, int y, object owner)
+        {
+            if (_Obstacles.Length > 0)
+            {
+                _Obstacles[Map.GetMapCellLocationIndex(x, y)] = owner;
+            }
+        }
+
+        public void Release(MapPoint point, object owner) => Release(point.X, point.Y, owner);
+
+        public void Release(int x, int y, object owner)
+        {
+            if (_Obstacles.Length > 0)
+            {
+                int cellIndex = Map.GetMapCellLocationIndex(x, y);
+
+                if (_Obstacles[cellIndex] == owner)
                 {
                     _Obstacles[cellIndex] = null;
 
                     ObstacleHasBeenChanged?.Invoke(x, y, owner);
                 }
-                else if (_Obstacles[cellIndex] is null)
-                {
-                    _Obstacles[cellIndex] = owner;
+            }
+        }
 
-                    ObstacleHasBeenChanged?.Invoke(x, y, owner);
+        public void HandleSingle(Action<MapDynamicObstaclesHandler> handler)
+        {
+            if (handler is not null)
+            {
+                lock (this)
+                {
+                    handler?.Invoke(this);
                 }
             }
         }

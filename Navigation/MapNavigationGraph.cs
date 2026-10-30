@@ -327,7 +327,7 @@ namespace MapGenearionLibrary.Navigation
             else
             {
                 LinkedList<RoomPathelement> pathesWave = new();
-                Dictionary<MapNavigationGraphElement, RoomPathelement> passedElements = new();
+                HashSet<MapNavigationGraphElement> passedElements = new();
 
                 {
                     double minDistance = double.MaxValue;
@@ -345,14 +345,14 @@ namespace MapGenearionLibrary.Navigation
 
                     bool _AddWaveElement(RoomPathelement prev, MapNavigationGraphElement room)
                     {
-                        if (passedElements.ContainsKey(room))
+                        if (passedElements.Contains(room))
                         {
                             return false;
                         }
                         else
                         {
                             pathesWave.AddLast(new RoomPathelement(prev, room));
-                            passedElements.Add(room, pathesWave.Last.Value);
+                            passedElements.Add(room);
 
                             return true;
                         }
@@ -360,7 +360,7 @@ namespace MapGenearionLibrary.Navigation
 
                     bool _AddWaveElementWithDoors(RoomPathelement prev, (MapNavigationGraphElement Element, MapDoor[] Doors) room)
                     {
-                        if (passedElements.ContainsKey(room.Element)
+                        if (passedElements.Contains(room.Element)
                             || room.Doors.FirstOrDefault(door => !NavigationHandler.StaticObstacles[door.Area1] && !NavigationHandler.StaticObstacles[door.Area2]) == null)
                         {
                             return false;
@@ -368,7 +368,7 @@ namespace MapGenearionLibrary.Navigation
                         else
                         {
                             pathesWave.AddLast(new RoomPathelement(prev, room.Element, room.Doors));
-                            passedElements.Add(room.Element, pathesWave.Last.Value);
+                            passedElements.Add(room.Element);
 
                             return true;
                         }
@@ -443,13 +443,18 @@ namespace MapGenearionLibrary.Navigation
             _FindPathInRoom(room, pointFrom, pointTo)
             .ToArray();
 
-        public MapPoint[] FindPathInRoomDynamic(MapPoint pointFrom, MapPoint pointTo, Object owner) => 
+        public (MapPoint[] ActualPath, MapPoint[] DynamicPath) FindPathInRoomDynamic(MapPoint pointFrom, MapPoint pointTo, Object owner) => 
             FindPathInRoomDynamic(NavigationHandler.GetRoom(pointFrom), pointFrom, pointTo, owner);
 
-        public MapPoint[] FindPathInRoomDynamic(MapRoom room, MapPoint pointFrom, MapPoint pointTo, Object owner) => 
-            _FindPathInRoom(room, pointFrom, pointTo)
-            .TakeWhile(point => NavigationHandler.DynamicObstacles[point, owner])
-            .ToArray();
+        public (MapPoint[] ActualPath, MapPoint[] DynamicPath) FindPathInRoomDynamic(MapRoom room, MapPoint pointFrom, MapPoint pointTo, Object owner)
+        {
+            var actualPath = _FindPathInRoom(room, pointFrom, pointTo).ToArray();
+            var dynamicPath = actualPath
+                .TakeWhile(point => NavigationHandler.DynamicObstacles[point, owner])
+                .ToArray();
+
+            return (actualPath, dynamicPath);
+        }
 
         private IEnumerable<MapPoint> _FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo)
         {
@@ -462,7 +467,7 @@ namespace MapGenearionLibrary.Navigation
             else
             {
                 LinkedList<RoomPathElement> pathesWave = new();
-                Dictionary<long, RoomPathElement> passedPoints = new();
+                HashSet<long> passedPoints = new();
 
                 {
                     RoomPathElement targetSequenceElement = null;
@@ -479,16 +484,16 @@ namespace MapGenearionLibrary.Navigation
 
                     bool _AddWaveElement(RoomPathElement prev, MapPoint point)
                     {
-                        if (passedPoints.ContainsKey(point.GetUniqCode())
+                        if (passedPoints.Contains(point.GetUniqCode())
                             || !room.DoesRoomContainsPoint(point)
-                            || NavigationHandler.StaticObstacles[point])
+                            || (NavigationHandler.StaticObstacles[point] && !point.AreEqual(pointFrom)))
                         {
                             return false;
                         }
                         else
                         {
                             pathesWave.AddLast(new RoomPathElement(prev, point));
-                            passedPoints.Add(point.GetUniqCode(), pathesWave.Last.Value);
+                            passedPoints.Add(point.GetUniqCode());
 
                             return true;
                         }
