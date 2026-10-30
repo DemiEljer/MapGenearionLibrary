@@ -1,6 +1,7 @@
 ﻿using MapGenearionLibrary.Base;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -40,10 +41,10 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        public MapNavigationGraphElement? GetElement(MapPoint point) => 
+        public MapNavigationGraphElement? GetElement(MapPoint point) =>
             Nodes.FirstOrDefault(node => MapPointOperations.DoesRoomContainsPoint(node.Room, point));
 
-        public MapNavigationGraphElement? GetElement(MapRoom room) => 
+        public MapNavigationGraphElement? GetElement(MapRoom room) =>
             Nodes.FirstOrDefault(node => node.Room == room);
 
         public MapRoom[] GetNeighbourRooms(MapPoint point)
@@ -436,19 +437,19 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        public MapPoint[] FindPathInRoom(MapPoint pointFrom, MapPoint pointTo) => 
+        public MapPoint[] FindPathInRoom(MapPoint pointFrom, MapPoint pointTo) =>
             FindPathInRoom(NavigationHandler.GetRoom(pointFrom), pointFrom, pointTo);
 
-        public MapPoint[] FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo) => 
+        public MapPoint[] FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo) =>
             _FindPathInRoom(room, pointFrom, pointTo)
             .ToArray();
 
-        public (MapPoint[] ActualPath, MapPoint[] DynamicPath) FindPathInRoomDynamic(MapPoint pointFrom, MapPoint pointTo, Object owner) => 
+        public (MapPoint[] ActualPath, MapPoint[] DynamicPath) FindPathInRoomDynamic(MapPoint pointFrom, MapPoint pointTo, object owner) =>
             FindPathInRoomDynamic(NavigationHandler.GetRoom(pointFrom), pointFrom, pointTo, owner);
 
-        public (MapPoint[] ActualPath, MapPoint[] DynamicPath) FindPathInRoomDynamic(MapRoom room, MapPoint pointFrom, MapPoint pointTo, Object owner)
+        public (MapPoint[] ActualPath, MapPoint[] DynamicPath) FindPathInRoomDynamic(MapRoom room, MapPoint pointFrom, MapPoint pointTo, object owner)
         {
-            var actualPath = _FindPathInRoom(room, pointFrom, pointTo).ToArray();
+            var actualPath = _FindPathInRoomDynamic(room, pointFrom, pointTo, owner).ToArray();
             var dynamicPath = actualPath
                 .TakeWhile(point => NavigationHandler.DynamicObstacles[point, owner])
                 .ToArray();
@@ -634,7 +635,309 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        public MapPoint[] FindDirectionInRoom(MapPoint pointFrom, MapPoint pointTo) => 
+        private IEnumerable<MapPoint> _FindPathInRoomDynamic(MapRoom room, MapPoint pointFrom, MapPoint pointTo, object owner)
+        {
+            if (room is null
+                || !(room.DoesRoomContainsPoint(pointFrom) && room.DoesRoomContainsPoint(pointTo))
+                || pointFrom.AreEqual(pointTo))
+            {
+                return Enumerable.Empty<MapPoint>();
+            }
+            else
+            {
+                LinkedList<RoomPathElement> pathesWave = new();
+                HashSet<long> passedPoints = new();
+
+                {
+                    RoomPathElement targetSequenceElement = null;
+
+                    IEnumerable<MapPoint> _GetPathFromSequence()
+                    {
+                        while (targetSequenceElement is not null)
+                        {
+                            yield return targetSequenceElement.Point;
+
+                            targetSequenceElement = targetSequenceElement.PreviousElement;
+                        }
+                    }
+
+                    bool _AddWaveElement(RoomPathElement prev, MapPoint point)
+                    {
+                        if (passedPoints.Contains(point.GetUniqCode())
+                            || !room.DoesRoomContainsPoint(point)
+                            || (NavigationHandler.StaticObstacles[point] && !point.AreEqual(pointFrom)))
+                        {
+                            return false;
+                        }
+                        else
+                        {
+                            pathesWave.AddLast(new RoomPathElement(prev, point));
+                            passedPoints.Add(point.GetUniqCode());
+
+                            return true;
+                        }
+                    }
+
+                    bool _HandleWaveElement(RoomPathElement element)
+                    {
+                        if (element.Point.AreEqual(pointTo))
+                        {
+                            targetSequenceElement = element;
+
+                            return true;
+                        }
+                        else
+                        {
+                            var currentPoint = element.Point;
+
+                            int deltaX = Math.Clamp(pointTo.X - currentPoint.X, -1, 1);
+                            int deltaY = Math.Clamp(pointTo.Y - currentPoint.Y, -1, 1);
+
+                            IEnumerable<(MapPoint Point, Action PointAdder)> nextPointsWave = Enumerable.Empty<(MapPoint, Action)>();
+
+                            if (deltaX != 0 && deltaY != 0)
+                            {
+                                IEnumerable<(MapPoint Point, Action PointAdder)> _GetNextPointsWave()
+                                {
+                                    if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                    {
+                                        {
+                                            var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY);
+
+                                            yield return (point, () => _AddWaveElement(element, point));
+                                        }
+                                    }
+
+                                    {
+                                        var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y);
+
+                                        yield return (point, () => _AddWaveElement(element, point));
+                                    }
+
+                                    {
+                                        var point = new MapPoint(currentPoint.X, currentPoint.Y + deltaY);
+
+                                        yield return (point, () => _AddWaveElement(element, point));
+                                    }
+
+                                    if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                    {
+                                        {
+                                            var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY);
+
+                                            yield return (point, () => _AddWaveElement(element, point));
+                                        }
+                                    }
+                                    if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                    {
+                                        {
+                                            var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY);
+
+                                            yield return (point, () => _AddWaveElement(element, point));
+                                        }
+                                    }
+
+                                    {
+                                        var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y);
+
+                                        yield return (point, () => _AddWaveElement(element, point));
+                                    }
+
+                                    {
+                                        var point = new MapPoint(currentPoint.X, currentPoint.Y - deltaY);
+
+                                        yield return (point, () => _AddWaveElement(element, point));
+                                    }
+
+                                    if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                    {
+                                        {
+                                            var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY);
+
+                                            yield return (point, () => _AddWaveElement(element, point));
+                                        }
+                                    }
+                                }
+
+                                nextPointsWave = _GetNextPointsWave();
+                            }
+                            else if (deltaX != 0)
+                            {
+                                deltaY = deltaX;
+
+                                IEnumerable<(MapPoint Point, Action PointAdder)> _GetNextPointsWave()
+                                {
+                                    {
+                                        var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y);
+
+                                        yield return (point, () => _AddWaveElement(element, point));
+                                    }
+
+                                    if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                    {
+                                        {
+                                            var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY);
+
+                                            yield return (point, () => _AddWaveElement(element, point));
+                                        }
+                                    }
+                                    if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                    {
+                                        {
+                                            var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY);
+
+                                            yield return (point, () => _AddWaveElement(element, point));
+                                        }
+                                    }
+
+                                    {
+                                        var point = new MapPoint(currentPoint.X, currentPoint.Y + deltaY);
+
+                                        yield return (point, () => _AddWaveElement(element, point));
+                                    }
+
+                                    {
+                                        var point = new MapPoint(currentPoint.X, currentPoint.Y - deltaY);
+
+                                        yield return (point, () => _AddWaveElement(element, point));
+                                    }
+
+                                    if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                    {
+                                        {
+                                            var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY);
+
+                                            yield return (point, () => _AddWaveElement(element, point));
+                                        }
+                                    }
+                                    if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                    {
+                                        {
+                                            var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY);
+
+                                            yield return (point, () => _AddWaveElement(element, point));
+                                        }
+                                    }
+
+                                    {
+                                        var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y);
+
+                                        yield return (point, () => _AddWaveElement(element, point));
+                                    }
+                                }
+
+                                nextPointsWave = _GetNextPointsWave();
+                            }
+                            else if (deltaY != 0)
+                            {
+                                deltaX = deltaY;
+
+                                IEnumerable<(MapPoint Point, Action PointAdder)> _GetNextPointsWave()
+                                {
+                                    {
+                                        var point = new MapPoint(currentPoint.X, currentPoint.Y + deltaY);
+
+                                        yield return (point, () => _AddWaveElement(element, point));
+                                    }
+
+                                    if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                    {
+                                        {
+                                            var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY);
+
+                                            yield return (point, () => _AddWaveElement(element, point));
+                                        }
+                                    }
+                                    if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
+                                    {
+                                        {
+                                            var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY);
+
+                                            yield return (point, () => _AddWaveElement(element, point));
+                                        }
+                                    }
+
+                                    {
+                                        var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y);
+
+                                        yield return (point, () => _AddWaveElement(element, point));
+                                    }
+
+                                    {
+                                        var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y);
+
+                                        yield return (point, () => _AddWaveElement(element, point));
+                                    }
+
+                                    if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                    {
+                                        {
+                                            var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY);
+
+                                            yield return (point, () => _AddWaveElement(element, point));
+                                        }
+                                    }
+                                    if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
+                                    {
+                                        {
+                                            var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY);
+
+                                            yield return (point, () => _AddWaveElement(element, point));
+                                        }
+                                    }
+
+                                    {
+                                        var point = new MapPoint(currentPoint.X, currentPoint.Y - deltaY);
+
+                                        yield return (point, () => _AddWaveElement(element, point));
+                                    }
+                                }
+
+                                nextPointsWave = _GetNextPointsWave();
+                            }
+
+                            foreach (var group in nextPointsWave.GroupBy(pathPointTupple => NavigationHandler.DynamicObstacles.GetCellObstacle(pathPointTupple.Point, owner)).OrderByDescending(group => group.Key))
+                            {
+                                foreach (var groupElement in group)
+                                {
+                                    groupElement.PointAdder.Invoke();
+                                }
+                            }
+
+                            return false;
+                        }
+                    }
+
+                    _AddWaveElement(null, pointFrom);
+                    bool terminationFlag = false;
+
+                    while (pathesWave.Count > 0 && !terminationFlag)
+                    {
+                        int currentWaveSise = pathesWave.Count;
+
+                        for (int i = 0; i < currentWaveSise; i++)
+                        {
+                            if (_HandleWaveElement(pathesWave.First.Value))
+                            {
+                                terminationFlag = true;
+                                break;
+                            }
+
+                            pathesWave.RemoveFirst();
+                        }
+
+                        if (terminationFlag)
+                        {
+                            break;
+                        }
+                    }
+
+                    return _GetPathFromSequence().Reverse();
+                }
+            }
+        }
+
+        public MapPoint[] FindDirectionInRoom(MapPoint pointFrom, MapPoint pointTo) =>
             FindDirectionInRoom(NavigationHandler.GetRoom(pointFrom), pointFrom, pointTo);
 
         public MapPoint[] FindDirectionInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo)
