@@ -247,15 +247,10 @@ namespace MapGenearionLibrary.Navigation
 
         public MapNavigationGraphPath? FindPathWave(MapPoint pointFrom, MapPoint pointTo, int layersCount = -1)
         {
-            if (NavigationHandler.StaticObstacles[pointTo])
-            {
-                return null;
-            }
-
             MapNavigationGraphElement roomFrom = GetElement(pointFrom);
             MapNavigationGraphElement roomTo = GetElement(pointTo);
 
-            var roomsSequence = _FindRoomsSqeuence(roomFrom, roomTo, layersCount);
+            var roomsSequence = _FindRoomsSqeuence(roomFrom, roomTo, pointFrom, pointTo, layersCount);
 
             if (roomsSequence.Length > 0)
             {
@@ -267,7 +262,12 @@ namespace MapGenearionLibrary.Navigation
                 foreach (var nextRoom in roomsSequence.TakeLast(roomsSequence.Length - 1))
                 {
                     var doorsTo = nextRoom.Doors
-                        .Where(door => !NavigationHandler.StaticObstacles[door.Area1] && !NavigationHandler.StaticObstacles[door.Area2])
+                        .Where(door => (!NavigationHandler.StaticObstacles[door.Area1] && !NavigationHandler.StaticObstacles[door.Area2])
+                            || (door.Area1.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area2])
+                            || (door.Area2.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area1])
+                            || (door.Area1.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area2])
+                            || (door.Area2.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area1])
+                            )
                         .Select(door =>
                         {
                             if (currentPointPath.Last.Value.Room.DoesRoomContainsPoint(door.Area1))
@@ -318,7 +318,7 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        private RoomPathelement[] _FindRoomsSqeuence(MapNavigationGraphElement roomFrom, MapNavigationGraphElement roomTo, int layersCount = -1)
+        private RoomPathelement[] _FindRoomsSqeuence(MapNavigationGraphElement roomFrom, MapNavigationGraphElement roomTo, MapPoint pointFrom, MapPoint pointTo, int layersCount = -1)
         {
             if (roomFrom is null
                 || roomTo is null)
@@ -362,7 +362,9 @@ namespace MapGenearionLibrary.Navigation
                     bool _AddWaveElementWithDoors(RoomPathelement prev, (MapNavigationGraphElement Element, MapDoor[] Doors) room)
                     {
                         if (passedElements.Contains(room.Element)
-                            || room.Doors.FirstOrDefault(door => !NavigationHandler.StaticObstacles[door.Area1] && !NavigationHandler.StaticObstacles[door.Area2]) == null)
+                            || room.Doors.FirstOrDefault(door => (!NavigationHandler.StaticObstacles[door.Area1] && !NavigationHandler.StaticObstacles[door.Area2])
+                                || (room.Element.Room.AreEqual(roomFrom.Room) && ((door.Area1.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area2]) || (door.Area2.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area1]))) 
+                                || (room.Element.Room.AreEqual(roomTo.Room) && ((door.Area1.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area2]) || (door.Area2.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area1])))) == null)
                         {
                             return false;
                         }
@@ -451,7 +453,7 @@ namespace MapGenearionLibrary.Navigation
         {
             var actualPath = _FindPathInRoomDynamic(room, pointFrom, pointTo, owner).ToArray();
             var dynamicPath = actualPath
-                .TakeWhile(point => NavigationHandler.DynamicObstacles[point, owner])
+                .TakeWhile(point => NavigationHandler.DynamicObstacles[point, owner] || point.AreEqual(pointFrom) || point.AreEqual(pointTo) )
                 .ToArray();
 
             return (actualPath, dynamicPath);
@@ -487,7 +489,7 @@ namespace MapGenearionLibrary.Navigation
                     {
                         if (passedPoints.Contains(point.GetUniqCode())
                             || !room.DoesRoomContainsPoint(point)
-                            || (NavigationHandler.StaticObstacles[point] && !point.AreEqual(pointFrom)))
+                            || (NavigationHandler.StaticObstacles[point] && !point.AreEqual(pointFrom) && !point.AreEqual(pointTo)))
                         {
                             return false;
                         }
