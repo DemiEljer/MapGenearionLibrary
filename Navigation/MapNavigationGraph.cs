@@ -439,27 +439,27 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        public MapPoint[] FindPathInRoom(MapPoint pointFrom, MapPoint pointTo) =>
-            FindPathInRoom(NavigationHandler.GetRoom(pointFrom), pointFrom, pointTo);
+        public MapPoint[] FindPathInRoom(MapPoint pointFrom, MapPoint pointTo, bool isFinalRoom = false) =>
+            FindPathInRoom(NavigationHandler.GetRoom(pointFrom), pointFrom, pointTo, isFinalRoom);
 
-        public MapPoint[] FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo) =>
-            _FindPathInRoom(room, pointFrom, pointTo)
+        public MapPoint[] FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo, bool isFinalRoom = false) =>
+            _FindPathInRoom(room, pointFrom, pointTo, isFinalRoom)
             .ToArray();
 
-        public (MapPoint[] ActualPath, MapPoint[] DynamicPath) FindPathInRoomDynamic(MapPoint pointFrom, MapPoint pointTo, object owner) =>
-            FindPathInRoomDynamic(NavigationHandler.GetRoom(pointFrom), pointFrom, pointTo, owner);
+        public (MapPoint[] ActualPath, MapPoint[] DynamicPath) FindPathInRoomDynamic(MapPoint pointFrom, MapPoint pointTo, object owner, bool isFinalRoom = false) =>
+            FindPathInRoomDynamic(NavigationHandler.GetRoom(pointFrom), pointFrom, pointTo, owner, isFinalRoom);
 
-        public (MapPoint[] ActualPath, MapPoint[] DynamicPath) FindPathInRoomDynamic(MapRoom room, MapPoint pointFrom, MapPoint pointTo, object owner)
+        public (MapPoint[] ActualPath, MapPoint[] DynamicPath) FindPathInRoomDynamic(MapRoom room, MapPoint pointFrom, MapPoint pointTo, object owner, bool isFinalRoom = false)
         {
-            var actualPath = _FindPathInRoomDynamic(room, pointFrom, pointTo, owner).ToArray();
+            var actualPath = _FindPathInRoomDynamic(room, pointFrom, pointTo, owner, isFinalRoom).ToArray();
             var dynamicPath = actualPath
-                .TakeWhile(point => NavigationHandler.DynamicObstacles[point, owner] || point.AreEqual(pointFrom) || point.AreEqual(pointTo) )
+                .TakeWhile(point => NavigationHandler.DynamicObstacles[point, owner] || point.AreEqual(pointFrom) || (point.AreEqual(pointTo) && isFinalRoom))
                 .ToArray();
 
             return (actualPath, dynamicPath);
         }
 
-        private IEnumerable<MapPoint> _FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo)
+        private IEnumerable<MapPoint> _FindPathInRoom(MapRoom room, MapPoint pointFrom, MapPoint pointTo, bool isFinalRoom = false)
         {
             if (room is null
                 || !(room.DoesRoomContainsPoint(pointFrom) && room.DoesRoomContainsPoint(pointTo))
@@ -489,7 +489,7 @@ namespace MapGenearionLibrary.Navigation
                     {
                         if (passedPoints.Contains(point.GetUniqCode())
                             || !room.DoesRoomContainsPoint(point)
-                            || (NavigationHandler.StaticObstacles[point] && !point.AreEqual(pointFrom) && !point.AreEqual(pointTo)))
+                            || (NavigationHandler.StaticObstacles[point] && !point.AreEqual(pointFrom) && !(point.AreEqual(pointTo) && isFinalRoom)))
                         {
                             return false;
                         }
@@ -637,7 +637,7 @@ namespace MapGenearionLibrary.Navigation
             }
         }
 
-        private IEnumerable<MapPoint> _FindPathInRoomDynamic(MapRoom room, MapPoint pointFrom, MapPoint pointTo, object owner)
+        private IEnumerable<MapPoint> _FindPathInRoomDynamic(MapRoom room, MapPoint pointFrom, MapPoint pointTo, object owner, bool isFinalRoom = false)
         {
             if (room is null
                 || !(room.DoesRoomContainsPoint(pointFrom) && room.DoesRoomContainsPoint(pointTo))
@@ -667,7 +667,7 @@ namespace MapGenearionLibrary.Navigation
                     {
                         if (passedPoints.Contains(point.GetUniqCode())
                             || !room.DoesRoomContainsPoint(point)
-                            || (NavigationHandler.StaticObstacles[point] && !point.AreEqual(pointFrom)))
+                            || (NavigationHandler.StaticObstacles[point] && !point.AreEqual(pointFrom) && !(point.AreEqual(pointTo) && isFinalRoom)))
                         {
                             return false;
                         }
