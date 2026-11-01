@@ -263,10 +263,10 @@ namespace MapGenearionLibrary.Navigation
                 {
                     var doorsTo = nextRoom.Doors
                         .Where(door => (!NavigationHandler.StaticObstacles[door.Area1] && !NavigationHandler.StaticObstacles[door.Area2])
-                            || (door.Area1.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area2])
-                            || (door.Area2.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area1])
-                            || (door.Area1.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area2])
-                            || (door.Area2.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area1])
+                            || (currentPointPath.Last.Value.Room.AreEqual(roomFrom.Room) 
+                               && ((door.Area1.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area2]) || (door.Area2.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area1])))
+                            || (nextRoom.CurrentElement.Room.AreEqual(roomTo.Room)
+                               && ((door.Area1.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area2]) || (door.Area2.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area1])))
                             )
                         .Select(door =>
                         {
