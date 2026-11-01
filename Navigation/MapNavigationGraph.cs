@@ -26,7 +26,19 @@ namespace MapGenearionLibrary.Navigation
             {
                 foreach (var node in Nodes)
                 {
-                    var doorsToRoom = node.Room.Doors.Where(door => node != nodeFrom && nodeFrom.Room.DoesRoomContainsDoor(door)).ToArray();
+                    var doorsToRoom = node.Room.Doors.Where(door => node != nodeFrom && nodeFrom.Room.DoesRoomContainsDoor(door))
+                        .Select(door =>
+                        {
+                            if (nodeFrom.Room.DoesRoomContainsPoint(door.Area1))
+                            {
+                                return new MapDoor(door.Area1, door.Area2, door.Orientation);
+                            }
+                            else
+                            {
+                                return new MapDoor(door.Area2, door.Area1, door.Orientation);
+                            }
+                        })
+                        .ToArray();
 
                     if (doorsToRoom.Length > 0)
                     {
@@ -169,14 +181,7 @@ namespace MapGenearionLibrary.Navigation
                             || room.Door.Area2.AreEqual(pointFrom))
                         .Select(room =>
                         {
-                            if (MapPointOperations.DoesRoomContainsPoint(currentRoom.Room, room.Door.Area1))
-                            {
-                                return (room.Door.Area1, room.Door.Area2, room, MapPointOperations.GetDistance(currentPosition, room.Door.Area2));
-                            }
-                            else
-                            {
-                                return (room.Door.Area2, room.Door.Area1, room, MapPointOperations.GetDistance(currentPosition, room.Door.Area2));
-                            }
+                            return (room.Door.Area1, room.Door.Area2, room, MapPointOperations.GetDistance(currentPosition, room.Door.Area2));
                         })
                         .GroupBy(tuple => tuple.Item3.Element)
                         .Select(group =>
@@ -263,22 +268,10 @@ namespace MapGenearionLibrary.Navigation
                 {
                     var doorsTo = nextRoom.Doors
                         .Where(door => (!NavigationHandler.StaticObstacles[door.Area1] && !NavigationHandler.StaticObstacles[door.Area2])
-                            || (currentPointPath.Last.Value.Room.AreEqual(roomFrom.Room) 
-                               && ((door.Area1.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area2]) || (door.Area2.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area1])))
-                            || (nextRoom.CurrentElement.Room.AreEqual(roomTo.Room)
-                               && ((door.Area1.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area2]) || (door.Area2.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area1])))
+                            || (currentPointPath.Last.Value.Room.AreEqual(roomFrom.Room) && (door.Area1.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area2]))
+                            || (nextRoom.CurrentElement.Room.AreEqual(roomTo.Room) && (door.Area2.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area1]))
                             )
-                        .Select(door =>
-                        {
-                            if (currentPointPath.Last.Value.Room.DoesRoomContainsPoint(door.Area1))
-                            {
-                                return (door.Area1, door.Area2, currentPointPath.Last.Value.Point.GetDistance(door.Area1) + 1);
-                            }
-                            else
-                            {
-                                return (door.Area2, door.Area1, currentPointPath.Last.Value.Point.GetDistance(door.Area2) + 1);
-                            }
-                        })
+                        .Select(door => (door.Area1, door.Area2, currentPointPath.Last.Value.Point.GetDistance(door.Area1) + 1))
                         .OrderBy(tuple => tuple.Item3);
 
                     var nearestDoor = doorsTo.First();
@@ -363,8 +356,8 @@ namespace MapGenearionLibrary.Navigation
                     {
                         if (passedElements.Contains(room.Element)
                             || room.Doors.FirstOrDefault(door => (!NavigationHandler.StaticObstacles[door.Area1] && !NavigationHandler.StaticObstacles[door.Area2])
-                                || (room.Element.Room.AreEqual(roomFrom.Room) && ((door.Area1.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area2]) || (door.Area2.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area1]))) 
-                                || (room.Element.Room.AreEqual(roomTo.Room) && ((door.Area1.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area2]) || (door.Area2.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area1])))) == null)
+                                || (room.Element.Room.AreEqual(roomFrom.Room) && (door.Area1.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area2])) 
+                                || (room.Element.Room.AreEqual(roomTo.Room) && (door.Area2.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area1]))) == null)
                         {
                             return false;
                         }
@@ -730,6 +723,7 @@ namespace MapGenearionLibrary.Navigation
                                             yield return (point, () => _AddWaveElement(element, point));
                                         }
                                     }
+
                                     if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
                                     {
                                         {
@@ -783,6 +777,7 @@ namespace MapGenearionLibrary.Navigation
                                             yield return (point, () => _AddWaveElement(element, point));
                                         }
                                     }
+
                                     if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
                                     {
                                         {
@@ -812,6 +807,7 @@ namespace MapGenearionLibrary.Navigation
                                             yield return (point, () => _AddWaveElement(element, point));
                                         }
                                     }
+
                                     if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
                                     {
                                         {
@@ -850,6 +846,7 @@ namespace MapGenearionLibrary.Navigation
                                             yield return (point, () => _AddWaveElement(element, point));
                                         }
                                     }
+
                                     if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
                                     {
                                         {
@@ -879,6 +876,7 @@ namespace MapGenearionLibrary.Navigation
                                             yield return (point, () => _AddWaveElement(element, point));
                                         }
                                     }
+
                                     if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
                                     {
                                         {
