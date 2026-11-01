@@ -356,7 +356,7 @@ namespace MapGenearionLibrary.Navigation
                     {
                         if (passedElements.Contains(room.Element)
                             || room.Doors.FirstOrDefault(door => (!NavigationHandler.StaticObstacles[door.Area1] && !NavigationHandler.StaticObstacles[door.Area2])
-                                || (room.Element.Room.AreEqual(roomFrom.Room) && (door.Area1.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area2])) 
+                                || (room.Element.Room.AreEqual(roomFrom.Room) && (door.Area1.AreEqual(pointFrom) && !NavigationHandler.StaticObstacles[door.Area2]))
                                 || (room.Element.Room.AreEqual(roomTo.Room) && (door.Area2.AreEqual(pointTo) && !NavigationHandler.StaticObstacles[door.Area1]))) == null)
                         {
                             return false;
@@ -641,6 +641,8 @@ namespace MapGenearionLibrary.Navigation
             else
             {
                 LinkedList<RoomPathElement> pathesWave = new();
+                LinkedList<IEnumerable<Action>> dynamicalyVacantPoints = new();
+                LinkedList<IEnumerable<Action>> dynamicalyTakenPoints = new();
                 HashSet<long> passedPoints = new();
 
                 {
@@ -898,9 +900,13 @@ namespace MapGenearionLibrary.Navigation
 
                             foreach (var group in nextPointsWave.GroupBy(pathPointTupple => NavigationHandler.DynamicObstacles.GetCellObstacle(pathPointTupple.Point, owner)).OrderByDescending(group => group.Key))
                             {
-                                foreach (var groupElement in group)
+                                if (group.Key)
                                 {
-                                    groupElement.PointAdder.Invoke();
+                                    dynamicalyVacantPoints.AddLast(group.Select(groupElement => groupElement.PointAdder));
+                                }
+                                else
+                                {
+                                    dynamicalyTakenPoints.AddLast(group.Select(groupElement => groupElement.PointAdder));
                                 }
                             }
 
@@ -929,6 +935,29 @@ namespace MapGenearionLibrary.Navigation
                         if (terminationFlag)
                         {
                             break;
+                        }
+
+                        int prevPointsInWaveCount = pathesWave.Count;
+
+                        while (dynamicalyVacantPoints.Count > 0)
+                        {
+                            foreach (var pointsAdders in dynamicalyVacantPoints.First.Value)
+                            {
+                                pointsAdders.Invoke();
+                            }
+
+                            dynamicalyVacantPoints.RemoveFirst();
+                        }
+
+                        while (dynamicalyTakenPoints.Count > 0
+                               && prevPointsInWaveCount == pathesWave.Count)
+                        {
+                            foreach (var pointsAdders in dynamicalyTakenPoints.First.Value)
+                            {
+                                pointsAdders.Invoke();
+                            }
+
+                            dynamicalyTakenPoints.RemoveFirst();
                         }
                     }
 
