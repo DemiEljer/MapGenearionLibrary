@@ -952,6 +952,11 @@ namespace MapGenearionLibrary.Navigation
                                 }
 
                                 waveSpreadDirections[i].RemoveLast();
+
+                                if (prevPointsInWaveCount != pathesWave.Count)
+                                {
+                                    break;
+                                }
                             }
 
                             if (prevPointsInWaveCount != pathesWave.Count)
