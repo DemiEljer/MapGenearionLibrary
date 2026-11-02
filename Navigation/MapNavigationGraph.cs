@@ -641,8 +641,16 @@ namespace MapGenearionLibrary.Navigation
             else
             {
                 LinkedList<RoomPathElement> pathesWave = new();
-                LinkedList<IEnumerable<Action>> dynamicalyVacantPoints = new();
-                LinkedList<IEnumerable<Action>> dynamicalyTakenPoints = new();
+                LinkedList<IEnumerable<Action>>[] waveSpreadDirections = new[]
+                {
+                    new LinkedList<IEnumerable<Action>>()
+                    ,
+                    new LinkedList<IEnumerable<Action>>()
+                    ,
+                    new LinkedList<IEnumerable<Action>>()
+                    ,
+                    new LinkedList<IEnumerable<Action>>()
+                };
                 HashSet<long> passedPoints = new();
 
                 {
@@ -690,31 +698,31 @@ namespace MapGenearionLibrary.Navigation
                             int deltaX = Math.Clamp(pointTo.X - currentPoint.X, -1, 1);
                             int deltaY = Math.Clamp(pointTo.Y - currentPoint.Y, -1, 1);
 
-                            IEnumerable<(MapPoint Point, Action PointAdder)> nextPointsWave = Enumerable.Empty<(MapPoint, Action)>();
+                            IEnumerable<(MapPoint Point, int Priority, Action PointAdder)> nextPointsWave = Enumerable.Empty<(MapPoint, int, Action)>();
 
                             if (deltaX != 0 && deltaY != 0)
                             {
-                                IEnumerable<(MapPoint Point, Action PointAdder)> _GetNextPointsWave()
+                                IEnumerable<(MapPoint Point, int Priority, Action PointAdder)> _GetNextPointsWave()
                                 {
                                     if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
                                     {
                                         {
                                             var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY);
 
-                                            yield return (point, () => _AddWaveElement(element, point));
+                                            yield return (point, 2, () => _AddWaveElement(element, point));
                                         }
                                     }
 
                                     {
                                         var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y);
 
-                                        yield return (point, () => _AddWaveElement(element, point));
+                                        yield return (point, 2, () => _AddWaveElement(element, point));
                                     }
 
                                     {
                                         var point = new MapPoint(currentPoint.X, currentPoint.Y + deltaY);
 
-                                        yield return (point, () => _AddWaveElement(element, point));
+                                        yield return (point, 2, () => _AddWaveElement(element, point));
                                     }
 
                                     if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
@@ -722,7 +730,7 @@ namespace MapGenearionLibrary.Navigation
                                         {
                                             var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY);
 
-                                            yield return (point, () => _AddWaveElement(element, point));
+                                            yield return (point, 1, () => _AddWaveElement(element, point));
                                         }
                                     }
 
@@ -731,20 +739,20 @@ namespace MapGenearionLibrary.Navigation
                                         {
                                             var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY);
 
-                                            yield return (point, () => _AddWaveElement(element, point));
+                                            yield return (point, 1, () => _AddWaveElement(element, point));
                                         }
                                     }
 
                                     {
                                         var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y);
 
-                                        yield return (point, () => _AddWaveElement(element, point));
+                                        yield return (point, 0, () => _AddWaveElement(element, point));
                                     }
 
                                     {
                                         var point = new MapPoint(currentPoint.X, currentPoint.Y - deltaY);
 
-                                        yield return (point, () => _AddWaveElement(element, point));
+                                        yield return (point, 0, () => _AddWaveElement(element, point));
                                     }
 
                                     if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
@@ -752,7 +760,7 @@ namespace MapGenearionLibrary.Navigation
                                         {
                                             var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY);
 
-                                            yield return (point, () => _AddWaveElement(element, point));
+                                            yield return (point, 0, () => _AddWaveElement(element, point));
                                         }
                                     }
                                 }
@@ -763,12 +771,12 @@ namespace MapGenearionLibrary.Navigation
                             {
                                 deltaY = deltaX;
 
-                                IEnumerable<(MapPoint Point, Action PointAdder)> _GetNextPointsWave()
+                                IEnumerable<(MapPoint Point, int Priority, Action PointAdder)> _GetNextPointsWave()
                                 {
                                     {
                                         var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y);
 
-                                        yield return (point, () => _AddWaveElement(element, point));
+                                        yield return (point, 2, () => _AddWaveElement(element, point));
                                     }
 
                                     if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
@@ -776,7 +784,7 @@ namespace MapGenearionLibrary.Navigation
                                         {
                                             var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY);
 
-                                            yield return (point, () => _AddWaveElement(element, point));
+                                            yield return (point, 2, () => _AddWaveElement(element, point));
                                         }
                                     }
 
@@ -785,20 +793,20 @@ namespace MapGenearionLibrary.Navigation
                                         {
                                             var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY);
 
-                                            yield return (point, () => _AddWaveElement(element, point));
+                                            yield return (point, 2, () => _AddWaveElement(element, point));
                                         }
                                     }
 
                                     {
                                         var point = new MapPoint(currentPoint.X, currentPoint.Y + deltaY);
 
-                                        yield return (point, () => _AddWaveElement(element, point));
+                                        yield return (point, 1, () => _AddWaveElement(element, point));
                                     }
 
                                     {
                                         var point = new MapPoint(currentPoint.X, currentPoint.Y - deltaY);
 
-                                        yield return (point, () => _AddWaveElement(element, point));
+                                        yield return (point, 1, () => _AddWaveElement(element, point));
                                     }
 
                                     if (!NavigationHandler.StaticObstacles[currentPoint.X - deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
@@ -806,7 +814,7 @@ namespace MapGenearionLibrary.Navigation
                                         {
                                             var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY);
 
-                                            yield return (point, () => _AddWaveElement(element, point));
+                                            yield return (point, 0, () => _AddWaveElement(element, point));
                                         }
                                     }
 
@@ -815,14 +823,14 @@ namespace MapGenearionLibrary.Navigation
                                         {
                                             var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY);
 
-                                            yield return (point, () => _AddWaveElement(element, point));
+                                            yield return (point, 0, () => _AddWaveElement(element, point));
                                         }
                                     }
 
                                     {
                                         var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y);
 
-                                        yield return (point, () => _AddWaveElement(element, point));
+                                        yield return (point, 0, () => _AddWaveElement(element, point));
                                     }
                                 }
 
@@ -832,12 +840,12 @@ namespace MapGenearionLibrary.Navigation
                             {
                                 deltaX = deltaY;
 
-                                IEnumerable<(MapPoint Point, Action PointAdder)> _GetNextPointsWave()
+                                IEnumerable<(MapPoint Point, int Priority, Action PointAdder)> _GetNextPointsWave()
                                 {
                                     {
                                         var point = new MapPoint(currentPoint.X, currentPoint.Y + deltaY);
 
-                                        yield return (point, () => _AddWaveElement(element, point));
+                                        yield return (point, 2, () => _AddWaveElement(element, point));
                                     }
 
                                     if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y + deltaY])
@@ -845,7 +853,7 @@ namespace MapGenearionLibrary.Navigation
                                         {
                                             var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y + deltaY);
 
-                                            yield return (point, () => _AddWaveElement(element, point));
+                                            yield return (point, 2, () => _AddWaveElement(element, point));
                                         }
                                     }
 
@@ -854,20 +862,20 @@ namespace MapGenearionLibrary.Navigation
                                         {
                                             var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y + deltaY);
 
-                                            yield return (point, () => _AddWaveElement(element, point));
+                                            yield return (point, 2, () => _AddWaveElement(element, point));
                                         }
                                     }
 
                                     {
                                         var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y);
 
-                                        yield return (point, () => _AddWaveElement(element, point));
+                                        yield return (point, 1, () => _AddWaveElement(element, point));
                                     }
 
                                     {
                                         var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y);
 
-                                        yield return (point, () => _AddWaveElement(element, point));
+                                        yield return (point, 1, () => _AddWaveElement(element, point));
                                     }
 
                                     if (!NavigationHandler.StaticObstacles[currentPoint.X + deltaX, currentPoint.Y] && !NavigationHandler.StaticObstacles[currentPoint.X, currentPoint.Y - deltaY])
@@ -875,7 +883,7 @@ namespace MapGenearionLibrary.Navigation
                                         {
                                             var point = new MapPoint(currentPoint.X + deltaX, currentPoint.Y - deltaY);
 
-                                            yield return (point, () => _AddWaveElement(element, point));
+                                            yield return (point, 0, () => _AddWaveElement(element, point));
                                         }
                                     }
 
@@ -884,30 +892,25 @@ namespace MapGenearionLibrary.Navigation
                                         {
                                             var point = new MapPoint(currentPoint.X - deltaX, currentPoint.Y - deltaY);
 
-                                            yield return (point, () => _AddWaveElement(element, point));
+                                            yield return (point, 0, () => _AddWaveElement(element, point));
                                         }
                                     }
 
                                     {
                                         var point = new MapPoint(currentPoint.X, currentPoint.Y - deltaY);
 
-                                        yield return (point, () => _AddWaveElement(element, point));
+                                        yield return (point, 0, () => _AddWaveElement(element, point));
                                     }
                                 }
 
                                 nextPointsWave = _GetNextPointsWave();
                             }
 
-                            foreach (var group in nextPointsWave.GroupBy(pathPointTupple => NavigationHandler.DynamicObstacles.GetCellObstacle(pathPointTupple.Point, owner)).OrderByDescending(group => group.Key))
+                            foreach (var group in nextPointsWave
+                                .Select(direction => (direction.Priority + (NavigationHandler.DynamicObstacles.GetCellObstacle(direction.Point, owner) ? 1 : 0), direction.PointAdder))
+                                .GroupBy(direction => direction.Item1).OrderByDescending(group => group.Key))
                             {
-                                if (group.Key)
-                                {
-                                    dynamicalyVacantPoints.AddLast(group.Select(groupElement => groupElement.PointAdder));
-                                }
-                                else
-                                {
-                                    dynamicalyTakenPoints.AddLast(group.Select(groupElement => groupElement.PointAdder));
-                                }
+                                waveSpreadDirections[group.Key].AddLast(group.Select(direction => direction.PointAdder));
                             }
 
                             return false;
@@ -939,25 +942,22 @@ namespace MapGenearionLibrary.Navigation
 
                         int prevPointsInWaveCount = pathesWave.Count;
 
-                        while (dynamicalyVacantPoints.Count > 0)
+                        for (int i = waveSpreadDirections.Length - 1; i >= 0; i--)
                         {
-                            foreach (var pointsAdders in dynamicalyVacantPoints.First.Value)
+                            while (waveSpreadDirections[i].Count > 0)
                             {
-                                pointsAdders.Invoke();
+                                foreach (var adder in waveSpreadDirections[i].Last())
+                                {
+                                    adder.Invoke();
+                                }
+
+                                waveSpreadDirections[i].RemoveLast();
                             }
 
-                            dynamicalyVacantPoints.RemoveFirst();
-                        }
-
-                        while (dynamicalyTakenPoints.Count > 0
-                               && prevPointsInWaveCount == pathesWave.Count)
-                        {
-                            foreach (var pointsAdders in dynamicalyTakenPoints.First.Value)
+                            if (prevPointsInWaveCount != pathesWave.Count)
                             {
-                                pointsAdders.Invoke();
+                                break;
                             }
-
-                            dynamicalyTakenPoints.RemoveFirst();
                         }
                     }
 

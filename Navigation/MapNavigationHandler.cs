@@ -41,13 +41,16 @@ namespace MapGenearionLibrary.Navigation
 
         private void _GetAllDoors()
         {
-            var foundDoors = new List<MapDoor>();
+            var foundDoors = new LinkedList<MapDoor>();
 
             if (_AreasIterator is not null)
             {
                 foreach (var area in _AreasIterator)
                 {
-                    foundDoors.AddRange(area.Doors);
+                    foreach (var door in area.Doors)
+                    {
+                        foundDoors.AddLast(door);
+                    }
                 }
             }
 

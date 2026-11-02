@@ -24,11 +24,11 @@ namespace MapGenearionLibrary.Base
 
         private void _InitAreasCollection()
         {
-            List<MapSeperationArea> _areas = new();
+            LinkedList<MapSeperationArea> _areas = new();
 
             void _GetSubAreas(MapSeperationArea area)
             {
-                _areas.Add(area);
+                _areas.AddLast(area);
 
                 if (area.ChildAreas.Length > 0)
                 {
