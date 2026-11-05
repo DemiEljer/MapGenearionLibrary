@@ -28,7 +28,17 @@ namespace MapGenearionLibrary.Base
 
         public void Set(int x, int y)
         {
+            SetX(x);
+            SetY(y);
+        }
+
+        public void SetX(int x)
+        {
             X = x;
+        }
+
+        public void SetY(int y)
+        {
             Y = y;
         }
 
@@ -45,5 +55,13 @@ namespace MapGenearionLibrary.Base
         {
             return (long)(X) | ((long)(Y) << 32);
         }
+
+        public void CopyTo(MapPoint point)
+        {
+            point.X = X;
+            point.Y = Y;
+        }
+
+        public override string ToString() => $"[{X}, {Y}]";
     }
 }

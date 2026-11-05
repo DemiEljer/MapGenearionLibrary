@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MapGenerationLibrary.Enums;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +13,8 @@ namespace MapGenearionLibrary.Base
         public MapSeperationArea MainArea { get; }
 
         public MapSeperationArea[] AllAreas { get; private set; } = Array.Empty<MapSeperationArea>();
+
+        public MapSeperationArea[] RoomsAreas { get; private set; } = Array.Empty<MapSeperationArea>();
 
         public int Count => AllAreas.Length;
 
@@ -40,6 +43,12 @@ namespace MapGenearionLibrary.Base
             _GetSubAreas(MainArea);
 
             AllAreas = _areas.ToArray();
+            RoomsAreas = AllAreas
+                .Where(area => area.SeperationParameter == SeperationParameterEnum.None)
+                .Select(area => (area.StartLocation.GetDistance(new MapPoint(0, 0)), area))
+                .OrderBy(tuple => tuple.Item1)
+                .Select(tuple => tuple.Item2)
+                .ToArray();
         }
 
         public IEnumerator<MapSeperationArea> GetEnumerator()

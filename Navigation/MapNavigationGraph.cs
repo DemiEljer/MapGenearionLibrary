@@ -1,4 +1,5 @@
 ﻿using MapGenearionLibrary.Base;
+using MapGenerationLibrary.Base;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -14,15 +15,15 @@ namespace MapGenearionLibrary.Navigation
     {
         public MapNavigationHandler NavigationHandler { get; }
 
-        public MapNavigationGraphElement[] Nodes { get; }
+        public MapLocationTree<MapNavigationGraphElement> Nodes { get; }
 
         public MapNavigationGraph(MapNavigationHandler navigationHandler)
         {
             NavigationHandler = navigationHandler;
 
-            Nodes = navigationHandler.Rooms.Select(room => new MapNavigationGraphElement(room)).ToArray();
+            Nodes = MapLocationTree<MapNavigationGraphElement>.CreateTree(NavigationHandler.AreasIterator, (area, index) => new MapNavigationGraphElement(NavigationHandler.Rooms[index]));
 
-            IEnumerable<(MapNavigationGraphElement to, MapDoor[] doors)> GetAllRoomDoorsPairs(MapNavigationGraphElement nodeFrom)
+            IEnumerable <(MapNavigationGraphElement to, MapDoor[] doors)> GetAllRoomDoorsPairs(MapNavigationGraphElement nodeFrom)
             {
                 foreach (var node in Nodes)
                 {
@@ -54,10 +55,10 @@ namespace MapGenearionLibrary.Navigation
         }
 
         public MapNavigationGraphElement? GetElement(MapPoint point) =>
-            Nodes.FirstOrDefault(node => MapPointOperations.DoesRoomContainsPoint(node.Room, point));
+            Nodes.GetValue(point);
 
         public MapNavigationGraphElement? GetElement(MapRoom room) =>
-            Nodes.FirstOrDefault(node => node.Room == room);
+            Nodes.GetValue(room.StartLocation);
 
         public MapRoom[] GetNeighbourRooms(MapPoint point)
         {
@@ -946,16 +947,28 @@ namespace MapGenearionLibrary.Navigation
                         {
                             while (waveSpreadDirections[i].Count > 0)
                             {
-                                foreach (var adder in waveSpreadDirections[i].Last())
+                                if (i == (waveSpreadDirections.Length - 1))
                                 {
-                                    adder.Invoke();
+                                    foreach (var adder in waveSpreadDirections[i].First.Value)
+                                    {
+                                        adder.Invoke();
+                                    }
+
+                                    waveSpreadDirections[i].RemoveFirst();
                                 }
-
-                                waveSpreadDirections[i].RemoveLast();
-
-                                if (prevPointsInWaveCount != pathesWave.Count)
+                                else
                                 {
-                                    break;
+                                    foreach (var adder in waveSpreadDirections[i].Last.Value)
+                                    {
+                                        adder.Invoke();
+                                    }
+
+                                    waveSpreadDirections[i].RemoveLast();
+
+                                    if (prevPointsInWaveCount != pathesWave.Count)
+                                    {
+                                        break;
+                                    }
                                 }
                             }
 

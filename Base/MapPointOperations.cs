@@ -1,4 +1,6 @@
-﻿using System;
+﻿using MapGenerationLibrary.Enums;
+using MapGenerationLibrary.Interfaces;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -78,5 +80,48 @@ namespace MapGenearionLibrary.Base
 
         public static bool DoesDoorContainsPoint(this MapDoor door, MapPoint point) =>
             door.Area1.AreEqual(point) || door.Area2.AreEqual(point);
+
+        internal static bool IsLocatibleBigger(this ILocatiable baseObject, ILocatiable comparingObject, SeperationParameterEnum parameter)
+        {
+            if (parameter == SeperationParameterEnum.X)
+            {
+                return (comparingObject.StartLocation.X + comparingObject.Size.X - 1) > (baseObject.StartLocation.X + baseObject.Size.X - 1);
+            }
+            else if (parameter == SeperationParameterEnum.Y)
+            {
+                return (comparingObject.StartLocation.Y + comparingObject.Size.Y - 1) > (baseObject.StartLocation.Y + baseObject.Size.Y - 1);
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        internal static bool IsLocatibleBigger(this ILocatiable baseObject, MapPoint point, SeperationParameterEnum parameter)
+        {
+            if (parameter == SeperationParameterEnum.X)
+            {
+                return point.X > (baseObject.StartLocation.X + baseObject.Size.X - 1);
+            }
+            else if (parameter == SeperationParameterEnum.Y)
+            {
+                return point.Y > (baseObject.StartLocation.Y + baseObject.Size.Y - 1);
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public static bool DoesLocatibleContainsPoint(this ILocatiable baseObject, MapPoint point)
+        {
+            var startX = baseObject.StartLocation.X;
+            var endX = baseObject.StartLocation.X + baseObject.Size.X;
+            var startY = baseObject.StartLocation.Y;
+            var endY = baseObject.StartLocation.Y + baseObject.Size.Y;
+
+            return point.X >= startX && point.X < endX
+                   && point.Y >= startY && point.Y < endY;
+        }
     }
 }

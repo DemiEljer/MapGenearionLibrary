@@ -1,4 +1,5 @@
 ﻿using MapGenearionLibrary.Enums;
+using MapGenerationLibrary.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,8 @@ namespace MapGenearionLibrary.Base
         public MapSeperationArea? Parent { get; private set; } = null;
 
         public MapSeperationArea[] ChildAreas { get; private set; } = Array.Empty<MapSeperationArea>();
+
+        public SeperationParameterEnum SeperationParameter{ get; private set; } = SeperationParameterEnum.None;
 
         public MapSeperationArea(Random rnd)
         {
@@ -81,6 +84,8 @@ namespace MapGenearionLibrary.Base
                         ,
                         Parent = this
                     };
+
+                    SeperationParameter = SeperationParameterEnum.X;
                 }
                 else if (Width < Height
                          || Width == Height && randomDirection == 1)
@@ -133,6 +138,8 @@ namespace MapGenearionLibrary.Base
                         ,
                         Parent = this
                     };
+
+                    SeperationParameter = SeperationParameterEnum.Y;
                 }
 
                 return ChildAreas;

@@ -1,4 +1,5 @@
 ﻿using MapGenearionLibrary.Base;
+using MapGenerationLibrary.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,7 +14,7 @@ namespace MapGenearionLibrary.Navigation
 
         public MapDoor[] Doors { get; private set; } = Array.Empty<MapDoor>();
 
-        public MapRoom[] Rooms { get; private set; } = Array.Empty<MapSeperationArea>();
+        public MapLocationTree<MapRoom> Rooms { get; private set; } = null;
 
         public MapNavigationGraph NavigationGraph { get; }
 
@@ -21,14 +22,14 @@ namespace MapGenearionLibrary.Navigation
 
         public MapDynamicObstaclesHandler DynamicObstacles { get; }
 
-        private MapSeperationAreaIterator? _AreasIterator { get; } = null;
+        internal MapSeperationAreaIterator? AreasIterator { get; } = null;
 
         public MapNavigationHandler(Map map)
         {
             Map = map;
             if (Map.MapConstruction != null)
             {
-                _AreasIterator = new(Map.MapConstruction);
+                AreasIterator = new(Map.MapConstruction);
             }
 
             _GetAllDoors();
@@ -43,9 +44,9 @@ namespace MapGenearionLibrary.Navigation
         {
             var foundDoors = new LinkedList<MapDoor>();
 
-            if (_AreasIterator is not null)
+            if (AreasIterator is not null)
             {
-                foreach (var area in _AreasIterator)
+                foreach (var area in AreasIterator)
                 {
                     foreach (var door in area.Doors)
                     {
@@ -59,17 +60,14 @@ namespace MapGenearionLibrary.Navigation
 
         public void _AssosiateRoomsWithDoors()
         {
-            if (_AreasIterator is not null)
-            {
-                Rooms = _AreasIterator.Where(a => a.ChildAreas.Length == 0).Select(area => area.GetRoom()).ToArray();
-            }
+            Rooms = MapLocationTree<MapRoom>.CreateTree(AreasIterator, (area, index) => area.GetRoom());
 
             foreach (var room in Rooms)
             {
-                room.SetDoors(Doors.Where(door => MapPointOperations.DoesRoomContainsDoor(room, door)).ToArray());
+                room.SetDoors(Doors.Where(door => room.DoesRoomContainsDoor(door)).ToArray());
             }
         }
 
-        public MapRoom? GetRoom(MapPoint point) => Rooms.FirstOrDefault(room => MapPointOperations.DoesRoomContainsPoint(room, point));
+        public MapRoom? GetRoom(MapPoint point) => Rooms.GetValue(point);
     }
 }

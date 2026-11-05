@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MapGenerationLibrary.Interfaces;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,15 +7,19 @@ using System.Threading.Tasks;
 
 namespace MapGenearionLibrary.Base
 {
-    public class MapRoom
+    public class MapRoom : ILocatiable
     {
-        public int StartX { get; internal set; }
+        public MapPoint StartLocation { get; } = new MapPoint();
 
-        public int StartY { get; internal set; }
+        public int StartX { get => StartLocation.X; internal set => StartLocation.SetX(value); }
 
-        public int Width { get; internal set; }
+        public int StartY { get => StartLocation.Y; internal set => StartLocation.SetY(value); }
 
-        public int Height { get; internal set; }
+        public MapPoint Size { get; } = new MapPoint();
+
+        public int Width { get => Size.X; internal set => Size.SetX(value); }
+
+        public int Height { get => Size.Y; internal set => Size.SetY(value); }
 
         public MapDoor[] Doors { get; private set; } = Array.Empty<MapDoor>();
 
@@ -34,5 +39,7 @@ namespace MapGenearionLibrary.Base
                 return StartX == anotherRoom.StartX && StartY == anotherRoom.StartY;
             }
         }
+
+        public override string ToString() => $"<{StartLocation},{Size}>";
     }
 }
