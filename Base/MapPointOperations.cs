@@ -1,8 +1,11 @@
-﻿using MapGenerationLibrary.Enums;
+﻿using MapGenearionLibrary.Enums;
+using MapGenerationLibrary.Enums;
 using MapGenerationLibrary.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -81,35 +84,97 @@ namespace MapGenearionLibrary.Base
         public static bool DoesDoorContainsPoint(this MapDoor door, MapPoint point) =>
             door.Area1.AreEqual(point) || door.Area2.AreEqual(point);
 
-        internal static bool IsLocatibleBigger(this ILocatiable baseObject, ILocatiable comparingObject, SeperationParameterEnum parameter)
+        internal static int GetLocatibleLeaveIndex(this ILocatiable baseObject, ILocatiable comparingObject, SeperationParameterEnum parameter)
         {
+            int baseStartLocation = 0;
+            int baseEndLocation = 0;
+            int comparingStartLocation = 0;
+            int comparingEndLocation = 0;
+
             if (parameter == SeperationParameterEnum.X)
             {
-                return (comparingObject.StartLocation.X + comparingObject.Size.X - 1) > (baseObject.StartLocation.X + baseObject.Size.X - 1);
+                baseStartLocation = baseObject.StartLocation.X;
+                comparingStartLocation = comparingObject.StartLocation.X;
+                baseEndLocation = baseObject.StartLocation.X + baseObject.Size.X - 1;
+                comparingEndLocation = comparingObject.StartLocation.X + comparingObject.Size.X - 1;
             }
             else if (parameter == SeperationParameterEnum.Y)
             {
-                return (comparingObject.StartLocation.Y + comparingObject.Size.Y - 1) > (baseObject.StartLocation.Y + baseObject.Size.Y - 1);
+                baseStartLocation = baseObject.StartLocation.Y;
+                comparingStartLocation = comparingObject.StartLocation.Y;
+                baseEndLocation = baseObject.StartLocation.Y + baseObject.Size.Y - 1;
+                comparingEndLocation = comparingObject.StartLocation.Y + comparingObject.Size.Y - 1;
+            }
+
+            if (comparingStartLocation < baseStartLocation)
+            {
+                if (comparingEndLocation < baseStartLocation)
+                {
+                    return 0;
+                }
+                else if (comparingEndLocation <= baseEndLocation)
+                {
+                    return 1;
+                }
+                else
+                {
+                    return 2;
+                }
+            }
+            else if (comparingStartLocation > baseEndLocation)
+            {
+                return 5;
             }
             else
             {
-                return false;
+                if (comparingEndLocation <= baseEndLocation)
+                {
+                    return 3;
+                }
+                else
+                {
+                    return 4;
+                }
             }
         }
 
-        internal static bool IsLocatibleBigger(this ILocatiable baseObject, MapPoint point, SeperationParameterEnum parameter)
+        internal static IEnumerable<int> GetLocatibleLeaveIndexCollection(this ILocatiable baseObject, MapPoint point, SeperationParameterEnum parameter)
         {
+            int baseStartLocation = 0;
+            int baseEndLocation = 0;
+            int pointValue = 0;
+
             if (parameter == SeperationParameterEnum.X)
             {
-                return point.X > (baseObject.StartLocation.X + baseObject.Size.X - 1);
+                baseStartLocation = baseObject.StartLocation.X;
+                baseEndLocation = baseObject.StartLocation.X + baseObject.Size.X - 1;
+                pointValue = point.X;
             }
             else if (parameter == SeperationParameterEnum.Y)
             {
-                return point.Y > (baseObject.StartLocation.Y + baseObject.Size.Y - 1);
+                baseStartLocation = baseObject.StartLocation.Y;
+                baseEndLocation = baseObject.StartLocation.Y + baseObject.Size.Y - 1;
+                pointValue = point.Y;
+            }
+
+            if (pointValue < baseStartLocation)
+            {
+                yield return 0;
+                yield return 1;
+                yield return 2;
+            }
+            else if (pointValue > baseEndLocation)
+            {
+                yield return 2;
+                yield return 4;
+                yield return 5;
             }
             else
             {
-                return false;
+                yield return 1;
+                yield return 2;
+                yield return 3;
+                yield return 4;
             }
         }
 
@@ -123,5 +188,7 @@ namespace MapGenearionLibrary.Base
             return point.X >= startX && point.X < endX
                    && point.Y >= startY && point.Y < endY;
         }
+
+        public static string GetString(this ILocatiable locatible) => $"<{locatible.StartLocation}, [{locatible.StartLocation.X + locatible.Size.X - 1}, {locatible.StartLocation.Y + locatible.Size.Y - 1}]>";
     }
 }

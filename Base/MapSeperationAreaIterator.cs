@@ -43,9 +43,13 @@ namespace MapGenearionLibrary.Base
             _GetSubAreas(MainArea);
 
             AllAreas = _areas.ToArray();
-            RoomsAreas = AllAreas
-                .Where(area => area.SeperationParameter == SeperationParameterEnum.None)
-                .Select(area => (area.StartLocation.GetDistance(new MapPoint(0, 0)), area))
+
+            RoomsAreas = AllAreas.Where(area => area.SeperationParameter == SeperationParameterEnum.None).ToArray();
+
+            MapPoint centralPoint = new MapPoint(RoomsAreas.Sum(area => area.StartX) / (RoomsAreas.Length), RoomsAreas.Sum(area => area.StartY) / (RoomsAreas.Length));
+
+            RoomsAreas = RoomsAreas
+                .Select(area => (area.StartLocation.GetDistance(centralPoint), area))
                 .OrderBy(tuple => tuple.Item1)
                 .Select(tuple => tuple.Item2)
                 .ToArray();

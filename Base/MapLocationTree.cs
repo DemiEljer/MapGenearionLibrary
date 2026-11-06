@@ -1,4 +1,5 @@
 ﻿using MapGenearionLibrary.Base;
+using MapGenearionLibrary.Enums;
 using MapGenerationLibrary.Enums;
 using MapGenerationLibrary.Interfaces;
 using System;
@@ -15,38 +16,27 @@ namespace MapGenerationLibrary.Base
     {
         public class LocationTreeElement : ILocatiable
         {
-            internal LocationTreeElement[] Leaves { get; } = new LocationTreeElement[2];
+            internal LocationTreeElement[] Leaves { get; } = new LocationTreeElement[6];
 
-            public LocationTreeElement Parent { get; internal set; } = null;
+            internal LocationTreeElement Parent { get; set; } = null;
 
-            public LocationTreeElement LeaveSmaller { get => Leaves[0]; internal set => Leaves[0] = value; }
-
-            public LocationTreeElement LeaveBigger { get => Leaves[1]; internal set => Leaves[1] = value; }
+            internal int Index { get; }
 
             public MapPoint StartLocation { get; } = new();
 
             public MapPoint Size { get; } = new();
 
-            public MapPoint MinLocation { get; } = new(int.MaxValue, int.MaxValue);
-
-            public MapPoint MaxLocation { get; } = new(int.MinValue, int.MinValue);
-
             public TValue Value { get; internal set; } = default(TValue);
 
             public SeperationParameterEnum Parameter { get; }
 
-            public LocationTreeElement(MapPoint point, MapPoint size, SeperationParameterEnum parameter, TValue value)
+            public LocationTreeElement(int index, MapPoint point, MapPoint size, SeperationParameterEnum parameter, TValue value)
             {
+                Index = index;
                 point.CopyTo(StartLocation);
                 size.CopyTo(Size);
                 Parameter = parameter;
                 Value = value;
-            }
-
-            public bool DoesContainsPoint(MapPoint point)
-            {
-                return point.X >= MinLocation.X && point.X <= MaxLocation.X
-                       && point.Y >= MinLocation.Y && point.Y < MaxLocation.Y;
             }
         }
 
@@ -63,30 +53,45 @@ namespace MapGenerationLibrary.Base
 
         internal MapLocationTree() { }
 
+
         public TValue GetValue(MapPoint point)
         {
-            var currentElement = Head;
+            LinkedList<LocationTreeElement> searchingStack = new();
 
-            while (currentElement is not null)
+            searchingStack.AddLast(Head);
+
+            bool _HandleElement(LocationTreeElement currentElement)
             {
                 if (currentElement.DoesLocatibleContainsPoint(point))
                 {
-                    return currentElement.Value;
-                }
-                else if (currentElement.LeaveBigger is not null
-                         && currentElement.IsLocatibleBigger(point, currentElement.Parameter)
-                         && currentElement.LeaveBigger.DoesContainsPoint(point))
-                {
-                    currentElement = currentElement.LeaveBigger;
-                }
-                else if (currentElement.LeaveSmaller is not null
-                         && currentElement.LeaveSmaller.DoesContainsPoint(point))
-                {
-                    currentElement = currentElement.LeaveSmaller;
+                    return true;
                 }
                 else
                 {
-                    break;
+                    foreach (var leaveIndex in currentElement.GetLocatibleLeaveIndexCollection(point, currentElement.Parameter))
+                    {
+                        if (currentElement.Leaves[leaveIndex] is not null)
+                        {
+                            searchingStack.AddLast(currentElement.Leaves[leaveIndex]);
+                        }
+                    }
+
+                    return false;
+                }
+            }
+
+            while (searchingStack.Count > 0)
+            {
+                int currentWaveElementsCount = searchingStack.Count;
+
+                for (int i = 0; i < currentWaveElementsCount; i++)
+                {
+                    if (_HandleElement(searchingStack.First.Value))
+                    {
+                        return searchingStack.First.Value.Value;
+                    }
+
+                    searchingStack.RemoveFirst();
                 }
             }
 
@@ -99,26 +104,6 @@ namespace MapGenerationLibrary.Base
             {
                 MapLocationTree<TValue> newTree = new();
                 LinkedList<TValue> createdObjects = new();
-
-                IEnumerable<MapSeperationArea> _GetRoomsFromIterator(MapSeperationAreaIterator iterator)
-                {
-                    var middleIndex = iterator.RoomsAreas.Length / 2;
-
-                    yield return iterator.RoomsAreas[middleIndex];
-
-                    for (int i = 1; i < middleIndex; i++)
-                    {
-                        yield return iterator.RoomsAreas[middleIndex - i];
-                        yield return iterator.RoomsAreas[middleIndex + i];
-                    }
-
-                    yield return iterator.RoomsAreas[0];
-
-                    if ((iterator.RoomsAreas.Length % 2) == 1)
-                    {
-                        yield return iterator.RoomsAreas[iterator.RoomsAreas.Length - 1];
-                    }
-                }
 
                 (LocationTreeElement Parent, int LeaveIndex, SeperationParameterEnum Parameter) _FindElementLocation(MapSeperationArea area)
                 {
@@ -134,14 +119,7 @@ namespace MapGenerationLibrary.Base
 
                         while (currentElement is not null)
                         {
-                            if (currentElement.IsLocatibleBigger(area, currentElement.Parameter))
-                            {
-                                leaveIndex = 1;
-                            }
-                            else
-                            {
-                                leaveIndex = 0;
-                            }
+                            leaveIndex = currentElement.GetLocatibleLeaveIndex(area, currentElement.Parameter);
 
                             if (currentElement.Leaves[leaveIndex] is not null)
                             {
@@ -153,42 +131,9 @@ namespace MapGenerationLibrary.Base
                             }
                         }
 
-                        return (currentElement, leaveIndex, (currentElement.Parameter == SeperationParameterEnum.X ? SeperationParameterEnum.Y : SeperationParameterEnum.X));
-                    }
-                }
+                        var newParameter = (currentElement.Parameter == SeperationParameterEnum.X ? SeperationParameterEnum.Y : SeperationParameterEnum.X);
 
-                void _ApdateLeavesSize(LocationTreeElement element)
-                {
-                    var currentElement = element;
-
-                    int minLocationX = element.StartLocation.X;
-                    int minLocationY = element.StartLocation.Y;
-                    int maxLocationX = element.StartLocation.X + element.Size.X - 1;
-                    int maxLocationY = element.StartLocation.Y + element.Size.Y - 1;
-
-                    while (element is not null)
-                    {
-                        if (element.MinLocation.X > minLocationX)
-                        {
-                            element.MinLocation.SetX(minLocationX);
-                        }
-
-                        if (element.MaxLocation.X < maxLocationX)
-                        {
-                            element.MaxLocation.SetX(maxLocationX);
-                        }
-
-                        if (element.MinLocation.Y > minLocationY)
-                        {
-                            element.MinLocation.SetY(minLocationY);
-                        }
-
-                        if (element.MaxLocation.Y < maxLocationY)
-                        {
-                            element.MaxLocation.SetY(maxLocationY);
-                        }
-
-                        element = element.Parent;
+                        return (currentElement, leaveIndex, newParameter);
                     }
                 }
 
@@ -197,29 +142,21 @@ namespace MapGenerationLibrary.Base
                     var areaParent = _FindElementLocation(area);
                     TValue valueObject = default(TValue);
 
-                    if (area.SeperationParameter == SeperationParameterEnum.None)
-                    {
-                        valueObject = valueCreatingDelegate?.Invoke(area, createdObjects.Count);
-                        createdObjects.AddLast(valueObject);
-                    }
+                    valueObject = valueCreatingDelegate?.Invoke(area, createdObjects.Count);
+                    createdObjects.AddLast(valueObject);
 
                     if (areaParent.Parent is null)
                     {
-                        newTree.Head = new LocationTreeElement(area.StartLocation, area.Size, area.Parent.SeperationParameter, valueObject);
-
-                        _ApdateLeavesSize(newTree.Head);
+                        newTree.Head = new LocationTreeElement(createdObjects.Count - 1, area.StartLocation, area.Size, SeperationParameterEnum.X, valueObject);
                     }
                     else
                     {
-
-                        areaParent.Parent.Leaves[areaParent.LeaveIndex] = new LocationTreeElement(area.StartLocation, area.Size, areaParent.Parameter, valueObject);
+                        areaParent.Parent.Leaves[areaParent.LeaveIndex] = new LocationTreeElement(createdObjects.Count - 1, area.StartLocation, area.Size, areaParent.Parameter, valueObject);
                         areaParent.Parent.Leaves[areaParent.LeaveIndex].Parent = areaParent.Parent;
-
-                        _ApdateLeavesSize(areaParent.Parent.Leaves[areaParent.LeaveIndex]);
                     }
                 }
 
-                foreach (var roomArea in _GetRoomsFromIterator(iterator))
+                foreach (var roomArea in iterator.RoomsAreas)
                 {
                     _AppendArea(roomArea);
                 }
@@ -250,9 +187,9 @@ namespace MapGenerationLibrary.Base
 
             List<StringBuilder> lines = new();
 
-            void _ValueAdder(int lineIndex, int parentIndex, LocationTreeElement element, bool isBigger)
+            void _ValueAdder(int lineIndex, int parentIndex, int leaveIndex, LocationTreeElement element)
             {
-                var value = $"[{lineIndex},{parentIndex}, {(isBigger ? "B" : "S")}, {element.Parameter}]<{element.StartLocation},{element.Size}>";
+                var value = $"'{element.Index}'[{lineIndex}, {parentIndex}, {leaveIndex}, {element.Parameter}]{element.GetString()}\t";
 
                 if (lineIndex == lines.Count)
                 {
@@ -261,20 +198,18 @@ namespace MapGenerationLibrary.Base
 
                 lines[lineIndex].Append(value);
 
-                if (element.LeaveBigger is not null)
+                for (int _leaveIndex = 0; _leaveIndex < element.Leaves.Length; _leaveIndex++)
                 {
-                    _ValueAdder(lineIndex + 1, parentIndex * 2, element.LeaveBigger, true);
-                }
-
-                if (element.LeaveSmaller is not null)
-                {
-                    _ValueAdder(lineIndex + 1, parentIndex * 2 + 1, element.LeaveSmaller, false);
+                    if (element.Leaves[_leaveIndex] is not null)
+                    {
+                        _ValueAdder(lineIndex + 1, element.Index, _leaveIndex, element.Leaves[_leaveIndex]);
+                    }
                 }
             }
 
             if (Head is not null)
             {
-                _ValueAdder(0, 0, Head, false);
+                _ValueAdder(0, -1, -1, Head);
             }
 
             foreach (var line in lines)

@@ -40,6 +40,6 @@ namespace MapGenearionLibrary.Base
             }
         }
 
-        public override string ToString() => $"<{StartLocation},{Size}>";
+        public override string ToString() => $"<{StartLocation}, [{StartLocation.X + Size.X - 1}, {StartLocation.Y + Size.Y - 1}]>";
     }
 }
